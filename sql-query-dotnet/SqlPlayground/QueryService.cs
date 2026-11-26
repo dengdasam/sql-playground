@@ -1,5 +1,4 @@
 using System.Data.Common;
-using System.Text.RegularExpressions;
 
 namespace SqlPlayground;
 
@@ -10,11 +9,6 @@ namespace SqlPlayground;
 public sealed class QueryService
 {
     private readonly DbConfig _cfg;
-
-    // 写入/危险语句拦截（与 Python 后端一致）
-    private static readonly Regex Forbidden = new(
-        @"\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|REPLACE|ATTACH|DETACH|PRAGMA|VACUUM|REINDEX|BEGIN|COMMIT|ROLLBACK|GRANT|REVOKE|SET|USE|EXEC|EXECUTE|CALL|LOAD|OUTFILE|DUMPFILE)\b",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public QueryService(IWebHostEnvironment env)
     {
@@ -150,13 +144,9 @@ public sealed class QueryService
 
     public object Query(string? sql)
     {
-        if (string.IsNullOrWhiteSpace(sql))
-            throw new ApiException("EMPTY_SQL", "SQL 为空");
-        if (Forbidden.IsMatch(sql))
-            throw new ApiException("READONLY_VIOLATION", "只允许 SELECT / WITH 查询，检测到写入或危险语句");
-        var trimmed = sql.Trim().TrimEnd(';');
-        if (trimmed.Contains(';'))
-            throw new ApiException("MULTI_STATEMENT", "一次只执行一条 SQL");
+        // 只读校验集中在 ReadOnlyGuard：剥离字面量/注释后按首关键字白名单判定，
+        // 不再全文扫黑名单（否则 replace() 这类标准函数会被误拦）。
+        var trimmed = ReadOnlyGuard.Validate(sql);
 
         using var con = Open();
         using var cmd = con.CreateCommand();
