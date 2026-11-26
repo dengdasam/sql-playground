@@ -202,6 +202,48 @@ Q = [
       keywords=["LIKE", "_ 单字符通配"]),
 
     # ================= B 聚合分组 =================
+
+    q(id="A10", cat="基础查询", level="进阶", title="人均 GDP 最高的 5 个人口大国",
+      desc="在人口超过 5000 万的国家里，按人均 GDP（gdp / population）降序取前 5 名，列出 name 和 per_capita。",
+      hint="整数相除在部分方言会截断，可以先乘 1.0 或让其中一方是小数。",
+      sql="SELECT name, gdp/population AS per_capita FROM world WHERE population > 50000000 ORDER BY per_capita DESC LIMIT 5",
+      strict=True, tables=["world"],
+      explain=[
+          "gdp 是 REAL、population 是 INTEGER，相除结果自动提升为浮点，不会截断。",
+          "若两列都是整数（如 MySQL），要写 gdp * 1.0 / population 才能得到小数。",
+          "WHERE 先筛人口门槛，ORDER BY 按算出来的别名 per_capita 排序。",
+          "LIMIT 5 取前 5 行，必须和 ORDER BY 搭配才有意义。",
+      ],
+      keywords=["算术运算", "浮点除法", "ORDER BY 别名", "LIMIT"],
+      note="这是 SQL 的经典坑：整数除整数在许多方言里是整除，结果为 0。"),
+
+    q(id="A11", cat="基础查询", level="进阶", title="名字第二个字母是 a",
+      desc="找出名字第二个字母为 a 的国家，只返回 name，按名字升序。",
+      hint="下划线 _ 匹配恰好一个字符。",
+      sql="SELECT name FROM world WHERE name LIKE '_a%' ORDER BY name",
+      strict=True, tables=["world"],
+      explain=[
+          "LIKE 里 % 匹配任意长度（含 0 个），_ 匹配恰好一个字符。",
+          "模式 '_a%' 表示：任意一个字符 + a + 任意后缀，即第二个字母是 a。",
+          "注意不能写成 '%a%'，那表示“任意位置含 a”，范围大得多。",
+      ],
+      keywords=["LIKE", "_ 单字符通配", "% 通配符", "ORDER BY"]),
+
+    q(id="A12", cat="基础查询", level="进阶", title="没有员工的部门工资合计",
+      desc="列出每个部门的名称和工资合计 total_salary；没有员工的部门合计显示 0，按部门名升序。",
+      hint="LEFT JOIN 后 SUM 会是 NULL，用 COALESCE 兜底。",
+      sql="SELECT d.name, COALESCE(SUM(e.salary), 0) AS total_salary FROM dept d LEFT JOIN emp e ON e.dept_id = d.id GROUP BY d.id, d.name ORDER BY d.name",
+      strict=True, tables=["dept", "emp"],
+      explain=[
+          "以 dept 为主表 LEFT JOIN emp，保证 Finance 这种零人部门不会消失。",
+          "Finance 没有匹配行，e.salary 全是 NULL；SUM 对全 NULL 求和返回 NULL，不是 0。",
+          "COALESCE(x, 0) 在 x 为 NULL 时返回 0，这是“空值兜底显示”的标准写法。",
+          "GROUP BY 同时写 d.id 和 d.name：只写 name 在部分方言下也可能报错，带上主键更稳。",
+      ],
+      keywords=["LEFT JOIN", "COALESCE", "NULL 处理", "SUM"],
+      note="SUM 对全 NULL 组返回 NULL 而不是 0，这是初学者最常见的空值坑。"),
+
+    # ================= B 聚合分组 =================
     q(id="B1", cat="聚合分组", level="入门", title="各大洲国家数量",
       desc="统计每个大洲的国家数量，显示 continent 和 cnt。",
       hint="GROUP BY continent, COUNT(*)",
@@ -299,6 +341,60 @@ Q = [
       keywords=["GROUP BY", "COUNT(*)", "ORDER BY", "LIMIT"]),
 
     # ================= C 多表连接 =================
+
+    q(id="B9", cat="聚合分组", level="进阶", title="有多少位不同的获奖者",
+      desc="统计 nobel 表里不重复的获奖者人数 distinct_winners。",
+      hint="COUNT(DISTINCT 列) 去重计数。",
+      sql="SELECT COUNT(DISTINCT winner) AS distinct_winners FROM nobel",
+      tables=["nobel"],
+      explain=[
+          "同一位获奖者可能多次出现（同一人不同年份获奖），直接 COUNT(*) 或 COUNT(winner) 会把重复算进去。",
+          "COUNT(DISTINCT winner) 先对 winner 去重再计数。",
+          "对比：COUNT(*) 数行数、COUNT(列) 数该列非 NULL 的行数、COUNT(DISTINCT 列) 数不重复值。",
+      ],
+      keywords=["COUNT(DISTINCT)", "COUNT(*) vs COUNT(列)"]),
+
+    q(id="B10", cat="聚合分组", level="进阶", title="2010 年后高产学科",
+      desc="统计 2010 年及以后各学科的获奖人数，只保留人数不少于 3 的学科，按人数降序。",
+      hint="先用 WHERE 筛年份，再 GROUP BY，最后 HAVING 筛人数。",
+      sql="SELECT subject, COUNT(*) FROM nobel WHERE yr >= 2010 GROUP BY subject HAVING COUNT(*) >= 3 ORDER BY COUNT(*) DESC",
+      strict=True, tables=["nobel"],
+      explain=[
+          "执行顺序：FROM → WHERE（筛行）→ GROUP BY（分组）→ HAVING（筛组）→ ORDER BY。",
+          "年份条件 yr >= 2010 针对单行，放 WHERE，能提前减少参与分组的行数。",
+          "人数是聚合结果，只能用 HAVING 过滤。",
+          "如果把 yr >= 2010 写进 HAVING，结果一样但更慢，且语义上不清晰。",
+      ],
+      keywords=["WHERE vs HAVING", "GROUP BY", "HAVING", "WHERE 执行顺序"]),
+
+    q(id="B11", cat="聚合分组", level="进阶", title="工资极差与均值",
+      desc="用一条查询返回全体员工的最高最低工资之差 span 和平均工资 avg_sal（四舍五入到整数）。",
+      hint="聚合函数可以出现在表达式里，不需要分组。",
+      sql="SELECT MAX(salary) - MIN(salary) AS span, ROUND(AVG(salary),0) AS avg_sal FROM emp",
+      tables=["emp"],
+      explain=[
+          "没有 GROUP BY，整张表就是一个组，聚合函数返回单行结果。",
+          "聚合函数可以直接参与算术：MAX(salary) - MIN(salary) 就是极差。",
+          "ROUND(AVG(salary), 0) 把平均值保留 0 位小数，即四舍五入到整数。",
+          "SQLite 的 AVG 返回浮点；MySQL 返回 DECIMAL，同样的 ROUND 行为一致。",
+      ],
+      keywords=["MAX", "MIN", "AVG", "ROUND", "全表聚合"]),
+
+    q(id="B12", cat="聚合分组", level="进阶", title="每个部门的成员名单",
+      desc="按 dept_id 分组，把该部门所有员工姓名用「, 」连接成一列 members，按 dept_id 升序。",
+      hint="SQLite/MySQL 用 GROUP_CONCAT(列, 分隔符)。",
+      sql="SELECT dept_id, GROUP_CONCAT(name, ', ') AS members FROM emp GROUP BY dept_id ORDER BY dept_id",
+      strict=True, tables=["emp"],
+      explain=[
+          "GROUP_CONCAT 是“分组内的字符串聚合”，把组内多行拼成一个值。",
+          "第二个参数是分隔符，默认是逗号，这里指定为 '逗号+空格' 更好读。",
+          "方言差异：MySQL 叫 GROUP_CONCAT，SQL Server 用 STRING_AGG（SQLite 3.44+ 也支持），PostgreSQL 用 STRING_AGG。",
+          "SQLite 的 GROUP_CONCAT 不保证拼接顺序，需要有序时得先在子查询里排好。",
+      ],
+      keywords=["GROUP_CONCAT", "字符串聚合", "GROUP BY", "方言差异"],
+      note="SQL Server 请改用 STRING_AGG(name, ', ')。"),
+
+    # ================= C 多表连接 =================
     q(id="C1", cat="多表连接", level="入门", title="员工与部门",
       desc="查出每个员工的姓名、工资和部门名称（name, salary, dept_name）。",
       hint="emp.dept_id = dept.id",
@@ -384,6 +480,48 @@ Q = [
       ],
       keywords=["LEFT JOIN", "COUNT(列) vs COUNT(*)", "NULL 语义"],
       note="这是 LEFT JOIN 统计最容易踩的坑：空关联时 COUNT(*) = 1，COUNT(右表列) = 0。"),
+
+    # ================= D 子查询 =================
+
+    q(id="C8", cat="多表连接", level="困难", title="同一部门的同事组合",
+      desc="对每位员工列出与其同部门、且员工 id 更小的同事，输出 emp（本人姓名）和 colleague（同事姓名），只输出有同事的，按 emp、colleague 升序。",
+      hint="把 emp 表自己 JOIN 自己两次，用 id 大小避免重复配对。",
+      sql="SELECT e.name AS emp, m.name AS colleague FROM emp e JOIN emp m ON e.dept_id = m.dept_id AND e.id < m.id ORDER BY e.name, m.name",
+      strict=True, tables=["emp"],
+      explain=[
+          "自连接：同一张表起两个别名 e、m，当成两张表用。别名的意义就在于区分两个“角色”。",
+          "连接条件 e.dept_id = m.dept_id 保证同部门。",
+          "关键在 e.id < m.id：不加这个条件每对同事会出现两次（A-B 和 B-A），还会出现自己配自己。",
+          "用 < 而不是 <> ，既排除自己，又只保留一种配对顺序，配对数量正好是组合数 C(n,2)。",
+      ],
+      keywords=["自连接", "表别名", "JOIN", "组合去重"],
+      note="自连接一定要想清楚“方向性”：用 < 排除自配和双向重复。"),
+
+    q(id="C9", cat="多表连接", level="困难", title="只有空部门（反连接）",
+      desc="找出一个员工都没有的部门名称，只返回 name。",
+      hint="LEFT JOIN 后筛 e.id IS NULL，或用 NOT EXISTS。",
+      sql="SELECT d.name FROM dept d LEFT JOIN emp e ON e.dept_id = d.id WHERE e.id IS NULL",
+      tables=["dept", "emp"],
+      explain=[
+          "LEFT JOIN 保留左表全部行，没有匹配的部门右边各列都是 NULL。",
+          "WHERE e.id IS NULL 就筛出“没匹配上”的那部分，这叫反连接。",
+          "注意必须判 IS NULL 而不能写 = NULL：NULL 和任何值比较（包括 NULL）结果都是 UNKNOWN，永远不成立。",
+          "等价写法：SELECT name FROM dept WHERE NOT EXISTS (SELECT 1 FROM emp WHERE emp.dept_id = dept.id)。",
+      ],
+      keywords=["反连接", "LEFT JOIN", "IS NULL", "NOT EXISTS", "NULL 语义"],
+      note="= NULL 永远为假，判空只能用 IS NULL，这是 SQL 最经典的坑。"),
+
+    q(id="C10", cat="多表连接", level="入门", title="给每行加一列常量",
+      desc="从 emp 取前 3 行，返回员工姓名 name 和公司名 company（固定为 'WMS 部'）。",
+      hint="可以在 SELECT 里直接写字符串常量并起别名。",
+      sql="SELECT name, 'WMS 部' AS company FROM emp LIMIT 3",
+      tables=["emp"],
+      explain=[
+          "SELECT 后面除了列名，也可以写任意常量表达式，每行都会带上这个值。",
+          "字符串常量要用单引号，AS company 给它一个列名（不加 AS 也能起别名，但加了好读）。",
+          "列名固定的常量列常用于 UNION 拼接时标注来源，或导出报表加表头信息。",
+      ],
+      keywords=["常量列", "AS 别名", "SELECT", "LIMIT"]),
 
     # ================= D 子查询 =================
     q(id="D1", cat="子查询", level="进阶", title="比某国人口多",
@@ -472,6 +610,36 @@ Q = [
       keywords=["相关子查询", "MAX", "分组取极值"]),
 
     # ================= E 窗口函数 =================
+
+    q(id="D8", cat="子查询", level="困难", title="人口高于亚洲平均的亚洲国家",
+      desc="列出人口高于亚洲平均值（仅按亚洲国家计算）的亚洲国家名。",
+      hint="标量子查询里可以带自己的 WHERE 条件。",
+      sql="SELECT name FROM world WHERE population > (SELECT AVG(population) FROM world WHERE continent = 'Asia') AND continent = 'Asia'",
+      tables=["world"],
+      explain=[
+          "括号里的子查询先独立执行，返回一个标量（单个数值），所以可以直接用 > 比较。",
+          "子查询内部的 WHERE continent = 'Asia' 保证平均值只按亚洲算，而不是全球平均。",
+          "外层再限定 continent = 'Asia'，否则会混进人口超过亚洲均值的美洲、欧洲国家。",
+          "常见错误：只写外层条件，忘了子查询里也要限定，结果拿全球均值和亚洲比，答案就错了。",
+      ],
+      keywords=["标量子查询", "AVG", "相关条件", "WHERE"],
+      note="母子查询各自的条件要分别想清楚，漏一个就会得到“看起来合理但其实错”的结果。"),
+
+    q(id="D9", cat="子查询", level="困难", title="获奖人数高于学科平均的学科",
+      desc="先算出各学科的获奖人数，再筛出高于这些人数平均值的学科，只返回 subject。",
+      hint="把分组计数做成派生表，再在外层和它的平均值比较。",
+      sql="SELECT subject FROM nobel GROUP BY subject HAVING COUNT(*) > (SELECT AVG(c) FROM (SELECT COUNT(*) AS c FROM nobel GROUP BY subject))",
+      tables=["nobel"],
+      explain=[
+          "内层最里：SELECT COUNT(*) FROM nobel GROUP BY subject 得到各学科人数（多行）。",
+          "外面包一层 AVG(c) 把多行压成一个标量——聚合可以“吃掉”子查询的多行结果。",
+          "外层 HAVING COUNT(*) > 那个平均值，按学科逐个比较。",
+          "不能直接写 COUNT(*) > AVG(COUNT(*))：聚合函数不能嵌套，必须借助子查询。",
+      ],
+      keywords=["派生表", "聚合嵌套", "HAVING", "子查询"],
+      note="聚合函数不能直接嵌套，遇到“聚合值的聚合”就把它拆成子查询。"),
+
+    # ================= E 窗口函数 =================
     q(id="E1", cat="窗口函数", level="进阶", title="全球人口排名",
       desc="查出所有国家名、人口及人口排名（人口多的排前面，并列同名次），列名 rk。",
       hint="RANK() OVER (ORDER BY population DESC)",
@@ -558,6 +726,63 @@ Q = [
       keywords=["ROW_NUMBER()", "PARTITION BY", "Nth 取值"]),
 
     # ================= F 条件与字符串 =================
+
+    q(id="E8", cat="窗口函数", level="进阶", title="按人口四分位分组",
+      desc="按人口降序把 22 个国家均分成 4 档，输出 name 和档位 quartile，按人口降序。",
+      hint="NTILE(4) OVER (ORDER BY ...)。",
+      sql="SELECT name, NTILE(4) OVER (ORDER BY population DESC) AS quartile FROM world ORDER BY population DESC",
+      strict=True, tables=["world"],
+      explain=[
+          "NTILE(n) 把结果按排序均分成 n 档，档号从 1 开始，人数差最多 1。",
+          "它不是按数值区间切（那是分位数），而是按行数切：22 行分 4 档就是 6/6/5/5。",
+          "和 RANK/DENSE_RANK 的区别：那两个给“排名”（可并列），NTILE 给“档位”（不并列、均匀分配）。",
+          "常用于分桶抽样、A/B 分组、分层统计。",
+      ],
+      keywords=["NTILE()", "OVER", "分桶", "窗口函数"],
+      note="行数不能被 n 整除时，前面的档位会多分配一行。"),
+
+    q(id="E9", cat="窗口函数", level="进阶", title="看下一位同事的工资",
+      desc="按工资升序排列员工，列出 name、salary 和下一位的工资 next_sal（最后一位为 NULL）。",
+      hint="LEAD(列) OVER (ORDER BY ...) 取后一行。",
+      sql="SELECT name, salary, LEAD(salary) OVER (ORDER BY salary) AS next_sal FROM emp ORDER BY salary",
+      strict=True, tables=["emp"],
+      explain=[
+          "LEAD 是偏移函数：在当前行基础上往后看一行，取指定列的值。",
+          "LAG 相反，往前看一行——常用于算环比：本期 - LAG(本期)。",
+          "没写 PARTITION BY，说明“后一行”是在整个结果集内按 salary 排的全局序。",
+          "最后一行没有下一行，LEAD 返回 NULL（可以传第三个参数指定默认值）。",
+      ],
+      keywords=["LEAD()", "LAG()", "偏移函数", "OVER"]),
+
+    q(id="E10", cat="窗口函数", level="困难", title="每个部门工资最高的人",
+      desc="对每位员工，额外输出本部门工资最高者的姓名 top_earner，按 dept_id 升序、工资降序排列。",
+      hint="FIRST_VALUE(列) OVER (PARTITION BY 部门 ORDER BY 工资 DESC)。",
+      sql="SELECT dept_id, name, salary, FIRST_VALUE(name) OVER (PARTITION BY dept_id ORDER BY salary DESC, id) AS top_earner FROM emp ORDER BY dept_id, salary DESC, id",
+      strict=True, tables=["emp"],
+      explain=[
+          "PARTITION BY dept_id 把员工按部门分成独立的“窗口”，窗口函数在每个窗口内各自计算。",
+          "ORDER BY salary DESC 定义窗口内的顺序，FIRST_VALUE 取该顺序下的第一个值。",
+          "加上 id 是为了确定性：IT 部门 Jim 和 Max 都是 90000，不加 tie-breaker 时谁排第一不保证。",
+          "和「按部门分组取最大值」相比，窗口函数的优势是**不压缩行数**——每个人都在，还能看到本部门的冠军。",
+      ],
+      keywords=["FIRST_VALUE()", "PARTITION BY", "窗口函数", "确定性排序"],
+      note="窗口函数写 ORDER BY 时，若有并列值，一定要补一个唯一列让顺序确定，否则结果不稳定。"),
+
+    q(id="E11", cat="窗口函数", level="困难", title="每洲人口占全球比重",
+      desc="按大洲汇总人口，输出 continent、洲人口 continent_pop 和占全球的百分比 pct（保留 2 位小数），按 pct 降序。",
+      hint="窗口 SUM() OVER () 不分区，得到全局总和。",
+      sql="SELECT continent, SUM(population) AS continent_pop, ROUND(SUM(population) * 100.0 / SUM(SUM(population)) OVER (), 2) AS pct FROM world GROUP BY continent ORDER BY pct DESC",
+      strict=True, tables=["world"],
+      explain=[
+          "GROUP BY continent 把行压成各大洲汇总，SUM(population) 是洲人口。",
+          "SUM(SUM(population)) OVER () 是聚合之上再开窗口：内层 SUM 先按洲汇总，外层 OVER () 不分区、对全部结果求总和。",
+          "因为 OVER () 里没有 PARTITION，它拿到的是“所有大洲人口之和”，即全球人口。",
+          "乘 100.0 是为了强制浮点：写成 100 在某些方言里会整除得 0。",
+      ],
+      keywords=["SUM() OVER", "窗口函数", "占比计算", "GROUP BY", "百分比计算"],
+      note="“聚合结果再聚合”是一类高频需求，窗口函数的 OVER () 空括号就是全表范围。"),
+
+    # ================= F 条件字符串 =================
     q(id="F1", cat="条件字符串", level="入门", title="2010 年物理奖得主",
       desc="查出 2010 年 Physics 奖项的获奖者姓名。",
       hint="两个条件用 AND 连接。",
@@ -645,6 +870,49 @@ Q = [
       keywords=["length()", "字符串函数"]),
 
     # ================= G WMS 实战 =================
+
+    q(id="F8", cat="条件字符串", level="入门", title="GDP 缺失时显示占位文字",
+      desc="列出 5 个国家的 name 和 gdp_text：GDP 为 NULL 时显示 '无数据'，否则显示 GDP 的文本形式。",
+      hint="COALESCE / IFNULL 处理空值。",
+      sql="SELECT name, COALESCE(CAST(gdp AS TEXT), '无数据') AS gdp_text FROM world ORDER BY name LIMIT 5",
+      strict=True, tables=["world"],
+      explain=[
+          "COALESCE(a, b) 返回第一个非 NULL 的值，是把 NULL 换成占位文字的通用写法。",
+          "CAST(gdp AS TEXT) 把数值转成文本，这样和字符串 '无数据' 类型一致。",
+          "只有所有参数都是 NULL 时才返回 NULL。",
+          "等价函数：SQLite/MySQL 的 IFNULL、MySQL 的 IFNULL/COALESCE、SQL Server 的 ISNULL、Oracle 的 NVL。COALESCE 是标准写法，跨库最稳。",
+      ],
+      keywords=["COALESCE", "CAST", "NULL 处理", "类型转换"],
+      note="样例数据里 world 表没有 NULL，换成自己的库时把条件改掉即可验证效果。"),
+
+    q(id="F9", cat="条件字符串", level="困难", title="一列一个洲的人口（行转列）",
+      desc="用 CASE 聚合把各洲人口横向展开成一列：返回 asia 和 europe 两个合计值，只有一行。",
+      hint="SUM(CASE WHEN ... THEN 值 ELSE 0 END) 是条件聚合。",
+      sql="SELECT SUM(CASE WHEN continent='Asia' THEN population ELSE 0 END) AS asia, SUM(CASE WHEN continent='Europe' THEN population ELSE 0 END) AS europe FROM world",
+      tables=["world"],
+      explain=[
+          "CASE WHEN 在每一行上判断，属于亚洲就取 population，否则取 0。",
+          "外面套 SUM 就把这些 0/人口值加起来，等于“只对亚洲求和”。",
+          "这就是条件聚合：用 CASE 生成 0/值，再用聚合函数筛，实现“按条件分组但不改变行数”。",
+          "行转列（PIVOT）在没有原生 PIVOT 的方言里就靠这个写法；SQL Server 有 PIVOT 语法但本质相同。",
+      ],
+      keywords=["CASE WHEN", "条件聚合", "行转列", "SUM"],
+      note="ELSE 0 不能省：省略 ELSE 会得到 NULL，SUM 时不影响结果，但如果用 COUNT 就有差别。"),
+
+    q(id="F10", cat="条件字符串", level="进阶", title="名字长度和首字母",
+      desc="列出 name、名字长度 len 和首字母首字母 first_char，限前 5 行，按名字升序。",
+      hint="LENGTH() 取长度，SUBSTR(列, 1, 1) 取首字符。",
+      sql="SELECT name, LENGTH(name) AS len, SUBSTR(name, 1, 1) AS first_char FROM world ORDER BY name LIMIT 5",
+      strict=True, tables=["world"],
+      explain=[
+          "LENGTH(name) 返回字符数；SQL Server 用 LEN，PostgreSQL 用 LENGTH 或 CHAR_LENGTH。",
+          "SUBSTR(s, 起始位置, 长度) 起始位置从 1 开始，取首字符就是 SUBSTR(name, 1, 1)。",
+          "SQL Server 叫 SUBSTRING，MySQL/SQLite 两个名字都认。",
+          "字符 vs 字节：SQLite 的 LENGTH 对文本按字符算，若存的是 BLOB 则按字节算。",
+      ],
+      keywords=["LENGTH()", "SUBSTR()", "字符串函数", "方言差异"]),
+
+    # ================= G WMS实战 =================
     q(id="G1", cat="WMS实战", level="进阶", title="入库单行：最近 30 天按天统计",
       desc="统计 winv_inbound_order_lines 表最近 30 天（含今天）每天创建的 ID 个数，返回 create_date, cnt，按日期升序。",
       hint="SQLite 用 date('now','-29 days')；今天算第 1 天，共 30 天。",
@@ -799,4 +1067,36 @@ Q = [
       ],
       keywords=["LEFT JOIN", "COUNT(DISTINCT)", "一对多放大", "NULL 处理"],
       note="多表连接后计数一定要想清楚“连接会不会放大行数”，这是最容易出错的场景之一。"),
+
+    q(id="G13", cat="WMS实战", level="进阶", title="计划量偏高的 SKU",
+      desc="列出总计划量超过 2000 的 SKU 及其总量 total_qty，按总量从高到低排序。",
+      hint="先按 sku 分组求和，再用 HAVING 过滤分组结果。",
+      sql="SELECT sku, SUM(plan_qty) AS total_qty FROM winv_inbound_order_lines GROUP BY sku HAVING SUM(plan_qty) > 2000 ORDER BY total_qty DESC",
+      strict=True, tables=["winv_inbound_order_lines"],
+      explain=[
+          "“每个 SKU 的总量”要先 GROUP BY sku，再 SUM(plan_qty) 求和。",
+          "过滤的是“求和之后的结果”，聚合结果不能用 WHERE（WHERE 在分组前执行），必须用 HAVING。",
+          "HAVING 里可以直接写聚合表达式 SUM(plan_qty)，也可以写别名的部分方言支持——标准写法更稳妥。",
+          "最后按别名 total_qty 降序，注意它是查询里定义的别名。",
+      ],
+      keywords=["GROUP BY", "SUM", "HAVING", "ORDER BY 别名"],
+      note="WHERE 过滤行、HAVING 过滤组，这是 SQL 执行顺序的核心区别。"),
+
+    q(id="G14", cat="WMS实战", level="困难", title="来源系统清单（去重合并）",
+      desc="用 UNION 汇总：入库单行里出现过的来源系统 + 固定补充一个 'SRM'，结果去重后按名称升序。",
+      hint="UNION 会自动去重，UNION ALL 不会。",
+      sql="SELECT source_system_code FROM winv_inbound_order_lines UNION SELECT 'SRM' ORDER BY 1",
+      strict=True, tables=["winv_inbound_order_lines"],
+      explain=[
+          "第一段 SELECT 取出表里所有出现过的来源系统，会有大量重复值。",
+          "第二段 SELECT 'SRM' 没有 FROM，是“直接选一个常量”，用来做补充清单。",
+          "UNION 会把两段结果纵向拼接并自动去重，所以最终每个系统只出现一次。",
+          "ORDER BY 写在最后一段之后，作用于合并后的整体结果。",
+      ],
+      keywords=["UNION", "去重", "常量列", "纵向拼接"],
+      note="UNION 与 UNION ALL 的关键差别就是“去不去重”，去重有排序开销，确定无重复时优先 UNION ALL。"),
+
+    # ================= H 新增：补齐常用但未覆盖的语法 =================
+
 ]
+
