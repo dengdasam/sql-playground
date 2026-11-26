@@ -67,12 +67,19 @@ static bool PortBusy(int port)
 }
 
 // 5288 上跑的是不是本程序（而不是别的服务）：看 /control/status 是否返回控制器字段
-static async Task<bool> LooksLikeOursAsync(int port)
+// 新版控制器要求令牌；拿不到令牌文件（首次运行 / 旧版本对端）时退回不带令牌探测，
+// 此时若对端是新版会得到 401，仍能据此判断「端口上确实是本程序」。
+static async Task<bool> LooksLikeOursAsync(int port, string logsDir)
 {
+    var token = ControlAuth.TryReadExisting(logsDir);
     try
     {
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(2) };
-        var text = await http.GetStringAsync($"http://127.0.0.1:{port}/control/status");
+        using var http = token is null
+            ? new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(2) }
+            : ControlAuth.CreateClient(token, TimeSpan.FromSeconds(2));
+
+        using var response = await http.GetAsync($"http://127.0.0.1:{port}/control/status");
+        var text = await response.Content.ReadAsStringAsync();
         return text.Contains("\"controllerUrl\"", StringComparison.Ordinal);
     }
     catch { return false; }
@@ -80,16 +87,20 @@ static async Task<bool> LooksLikeOursAsync(int port)
 
 // 重复双击 exe 时，通知已经在跑的那个实例把主窗口调到前台。
 // 返回「是否通知成功」以及「那个实例有没有窗口」——命令行/托盘模式没有窗口，需要退化为文字提示。
-static async Task<(bool Reached, bool HasWindow)> AskShowExistingAsync()
+// 令牌从 logs/control-token.txt 读（已有实例启动时写的），跨进程靠这个文件对接。
+static async Task<(bool Reached, bool HasWindow)> AskShowExistingAsync(string logsDir)
 {
     try
     {
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(2) };
+        var token = ControlAuth.TryReadExisting(logsDir);
+        if (token is null) return (false, false);   // 旧版本控制器没写令牌文件
+
+        using var http = ControlAuth.CreateClient(token, TimeSpan.FromSeconds(2));
         using var response = await http.PostAsync("http://127.0.0.1:5288/control/show", null);
         var text = await response.Content.ReadAsStringAsync();
         return (response.IsSuccessStatusCode, text.Contains("\"hasWindow\":true", StringComparison.Ordinal));
     }
-    catch { return (false, false); }   // 旧版本控制器没有这个端点
+    catch { return (false, false); }
 }
 
 // 双击 exe 时窗口一闪而过看不到报错，给一个停顿；被重定向或无控制台时直接跳过
@@ -188,14 +199,14 @@ using var single = new Mutex(initiallyOwned: true, @"Local\SqlQueryController", 
 if (!isFirst)
 {
     // 另一个实例正持有互斥体：等它把 HTTP 端点拉起来（首次启动要编译，最多等 20 秒）
-    for (var i = 0; i < 40 && !await LooksLikeOursAsync(5288); i++)
+    for (var i = 0; i < 40 && !await LooksLikeOursAsync(5288, Path.Combine(root, "logs")); i++)
         await Task.Delay(500);
 }
 
-if (await LooksLikeOursAsync(5288))
+if (await LooksLikeOursAsync(5288, Path.Combine(root, "logs")))
 {
     Say($"[{DateTime.Now:HH:mm:ss}] 检测到已有控制器在运行（端口 5288）。");
-    var (reached, hasWindow) = await AskShowExistingAsync();
+    var (reached, hasWindow) = await AskShowExistingAsync(Path.Combine(root, "logs"));
     Say(reached
         ? hasWindow ? "  已通知它把主窗口调到前台，本次不再重复启动。"
                     : "  已通知它（该实例是命令行/托盘模式，没有主窗口）。"
@@ -266,26 +277,34 @@ app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = files });
 app.UseStaticFiles(new StaticFileOptions { FileProvider = files });
 
 // ---------- 控制接口（控制器自身提供，不转发给主服务） ----------
-app.MapGet("/control/status", () => Results.Json(backend.Status()));
-app.MapPost("/control/start", async () =>
+// 这些端点会改变进程状态（起停主服务、唤窗口），因此全部要求 X-Control-Token。
+// 令牌写在 logs/control-token.txt（ACL 限当前用户），页面上没有任何按钮调用这些端点。
+var controlAuth = ControlAuth.Create(Path.Combine(root, "logs"));
+
+app.MapGet("/control/status", (HttpRequest req) =>
+    controlAuth.IsAuthorized(req) ? Results.Json(backend.Status()) : ControlAuth.Reject());
+app.MapPost("/control/start", async (HttpRequest req) =>
 {
-    ui?.LogExternal("页面点了「启动服务」，正在拉起主服务…");
+    if (!controlAuth.IsAuthorized(req)) return ControlAuth.Reject();
+    ui?.LogExternal("收到启动请求，正在拉起主服务…");
     var st = await backend.StartAsync();
     ui?.LogExternal(backend.Running
-        ? $"页面启动完成：主服务运行中（pid {backend.Pid}）"
-        : "页面启动未成功：" + backend.Message);
+        ? $"启动完成：主服务运行中（pid {backend.Pid}）"
+        : "启动未成功：" + backend.Message);
     return Results.Json(st);
 });
-app.MapPost("/control/stop", async () =>
+app.MapPost("/control/stop", async (HttpRequest req) =>
 {
-    ui?.LogExternal("页面点了「停止服务」，正在优雅停止…");
+    if (!controlAuth.IsAuthorized(req)) return ControlAuth.Reject();
+    ui?.LogExternal("收到停止请求，正在优雅停止…");
     var st = await backend.StopAsync();
-    ui?.LogExternal("页面停止完成：" + backend.Message);
+    ui?.LogExternal("停止完成：" + backend.Message);
     return Results.Json(st);
 });
 // 重复双击 exe 时，第二个实例用这个端点让已有实例把主窗口调到前台
-app.MapPost("/control/show", () =>
+app.MapPost("/control/show", (HttpRequest req) =>
 {
+    if (!controlAuth.IsAuthorized(req)) return ControlAuth.Reject();
     ui?.ShowWindow();
     return Results.Json(new { ok = ui is not null, hasWindow = ui?.HasWindow ?? false });
 });

@@ -48,10 +48,11 @@ dotnet run --project SqlController --no-build
 
 ```bash
 cd sql-query-dotnet
-dotnet test SqlPlayground.Tests/SqlPlayground.Tests.csproj
+dotnet test SqlPlayground.Tests/SqlPlayground.Tests.csproj   # 只读校验 + 真实库查询，46 个用例
+dotnet test SqlController.Tests/SqlController.Tests.csproj   # /control/* 鉴权，11 个用例
 ```
 
-覆盖只读校验（放行 / 拦截两侧边界）与真实库查询，全部离线执行，不连外部服务。
+全部离线执行，不连外部服务。
 
 ### 想要双击即用的 exe
 
@@ -90,6 +91,17 @@ SQLite  /  MySQL  /  SQL Server
   > 单独调试后端（不经过控制器）时监听的是 **5180**：控制器会通过 `API_URL` 环境变量把端口传下去，未设置时 `Program.cs` 回落到 `http://127.0.0.1:5180`。
 - **托盘图标**：绿色=运行中，灰色=已停止，红色=异常退出。右键可启停服务、重看日志、改设置；双击唤回主窗口。
 - **点 × 关闭窗口**只最小化到托盘，服务继续跑（可在「设置」里改成「退出并停止服务」）。
+
+### 控制接口的鉴权
+
+`/control/*` 会改变进程状态（起停主服务、唤窗口），因此全部要求请求头 `X-Control-Token`，否则返回 **401**。
+
+- 令牌在控制器每次启动时随机生成（32 字节），写入 `logs/control-token.txt`，并把该文件 ACL 收紧到**仅当前用户**（`icacls` 可见只剩一个账户）。
+- 重启控制器即换新令牌，旧令牌立刻失效。
+- 之所以落盘而非纯内存：`/control/show` 是**跨进程**用的——重复双击 exe 时第二个实例要靠它把已有实例的窗口调到前台。
+- 页面上没有任何按钮调用这些接口，日常使用无需关心令牌。
+
+> 边界：这挡的是「同机其他账户」和「网页脚本」，不挡「同一用户下的恶意程序」——后者能读你的文件，本机凭据都拦不住，最终得靠系统账号隔离。
 
 ---
 
