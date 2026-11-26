@@ -54,6 +54,8 @@ var app = builder.Build();
 app.UseResponseCompression();
 app.UseDefaultFiles();
 app.UseStaticFiles();
+// 跨站防护要在 /api 之前：挡掉恶意网页用 text/plain 发起的免预检请求与 DNS rebinding
+app.UseOriginGuard();
 app.UseRequestLog();
 
 // 让控制器能拿到数据库真实路径

@@ -345,6 +345,25 @@ Func<HttpContext, Task> writeUnavailable = async ctx =>
 // 业务接口与 OpenAPI 文档共用同一段流式转发逻辑
 RequestDelegate proxyToBackend = async (HttpContext ctx) =>
 {
+    // 跨站拦截放在最前：不把可疑请求送进后端端口，也不必依赖后端版本
+    var rejection = ProxyOriginGuard.Check(ctx.Request);
+    if (rejection is not null)
+    {
+        ui?.LogExternal($"已拦截可疑请求 {ctx.Request.Method} {ctx.Request.Path}：{rejection}"
+            + $"（Origin={ctx.Request.Headers.Origin}，Host={ctx.Request.Host}）");
+        ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+        ctx.Response.ContentType = "application/json; charset=utf-8";
+        await ctx.Response.WriteAsJsonAsync(new
+        {
+            success = false,
+            data = (object?)null,
+            error = new { code = "BAD_ORIGIN", message = rejection + "。本接口只允许页面自身调用。" },
+            elapsedMs = 0.0,
+            timestamp = DateTimeOffset.Now.ToString("O")
+        });
+        return;
+    }
+
     // 进程已停止时直接回信封，不必等连接失败（否则会有约 2 秒空等）
     if (!backend.IsRunning)
     {
@@ -358,6 +377,13 @@ RequestDelegate proxyToBackend = async (HttpContext ctx) =>
     // 告诉后端"用户看到的是哪个地址"：/openapi.json 用它生成 servers，直连时后端自己也能拼出来
     request.Headers.TryAddWithoutValidation("X-Forwarded-Host", ctx.Request.Host.Value);
     request.Headers.TryAddWithoutValidation("X-Forwarded-Proto", ctx.Request.Scheme);
+
+    // 把来源信息一并带给后端，让后端的 OriginGuard 也能独立判断。
+    // 不转发这两项的话，后端看到的请求"没有 Origin"，会被当成正常的非浏览器请求放行。
+    if (ctx.Request.Headers.TryGetValue("Origin", out var origin))
+        request.Headers.TryAddWithoutValidation("Origin", origin.ToString());
+    if (ctx.Request.Headers.TryGetValue("Sec-Fetch-Site", out var fetchSite))
+        request.Headers.TryAddWithoutValidation("Sec-Fetch-Site", fetchSite.ToString());
 
     // 把浏览器接受的压缩编码带给后端，否则后端不会压缩 JSON 结果
     if (ctx.Request.Headers.TryGetValue("Accept-Encoding", out var acceptEncoding))

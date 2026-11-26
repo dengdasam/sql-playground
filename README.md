@@ -48,8 +48,8 @@ dotnet run --project SqlController --no-build
 
 ```bash
 cd sql-query-dotnet
-dotnet test SqlPlayground.Tests/SqlPlayground.Tests.csproj   # 只读校验 + 真实库查询，46 个用例
-dotnet test SqlController.Tests/SqlController.Tests.csproj   # /control/* 鉴权，11 个用例
+dotnet test SqlPlayground.Tests/SqlPlayground.Tests.csproj   # 只读校验 + 跨站防护 + 真实库查询，67 个用例
+dotnet test SqlController.Tests/SqlController.Tests.csproj   # /control/* 鉴权 + 反代拦截，24 个用例
 ```
 
 全部离线执行，不连外部服务。
@@ -102,6 +102,25 @@ SQLite  /  MySQL  /  SQL Server
 - 页面上没有任何按钮调用这些接口，日常使用无需关心令牌。
 
 > 边界：这挡的是「同机其他账户」和「网页脚本」，不挡「同一用户下的恶意程序」——后者能读你的文件，本机凭据都拦不住，最终得靠系统账号隔离。
+
+### 跨站防护
+
+`/api/*` 会校验 **Host** 与 **Origin**，不通过返回 **403**。
+
+要防的两类攻击：
+
+| 攻击 | 手法 | 拦截依据 |
+| --- | --- | --- |
+| **跨站读库** | 你开着某个恶意网页，它用 `text/plain` 发 JSON 到本地端口。`text/plain` 属"简单请求"，**不触发 CORS 预检**，后端又只看请求体不看 Content-Type | `Origin` 不在本机白名单 → 403 |
+| **DNS rebinding** | 域名先解析到攻击者服务器（页面加载完），再改指 127.0.0.1，此时脚本与目标"同源"，预检也拦不住 | `Host` 不是回环地址 → 403 |
+
+- 允许的 Host：`127.0.0.1` / `localhost` / `::1`；允许的端口：5288（控制器）、5280（后端）、5180（单独调试）。
+- 不带 `Origin` 的请求放行——curl、脚本、控制器内部反代都属于这类，没有"被别的网站冒用"的风险。
+- 另有 `Sec-Fetch-Site` 作为第二道信号，只接受 `same-origin` 与 `none`。
+
+**控制器与后端各拦一层**。控制器转发请求头是白名单式的，早先只拷 `X-Forwarded-*`，`Origin` 被丢掉，导致经 5288 进来的跨站请求一路打到后端；现在既在控制器先拒，也把 `Origin` / `Sec-Fetch-Site` 转发给后端，两层都能独立判断。
+
+> 注意：**用 curl 或脚本测这两个端口时要加 `--noproxy '*'`**。本机若设了 `HTTP_PROXY` 环境变量，`127.0.0.1` 的请求会被代理接管，返回 HTTP 000。
 
 ---
 
