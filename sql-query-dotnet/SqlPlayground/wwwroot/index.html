@@ -16,7 +16,7 @@
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.72;-webkit-font-smoothing:antialiased}
-.layout{display:flex;align-items:flex-start;max-width:1400px;margin:0 auto;min-height:100vh}
+.layout{display:flex;align-items:flex-start;max-width:none;margin:0;min-height:100vh}
 .sidebar{position:sticky;top:0;flex:0 0 246px;width:246px;height:100vh;overflow-y:auto;background:var(--paper);border-right:1px solid var(--line);padding:24px 16px 22px;display:flex;flex-direction:column}
 .brand{display:flex;align-items:center;gap:9px;margin-bottom:18px;padding:0 3px}
 .brand .sq{width:22px;height:22px;border-radius:5px;background:var(--accent);flex:0 0 auto}
@@ -65,7 +65,11 @@ body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--
 .tbl-mini:hover{border-color:var(--accent);color:var(--accent)}
 .side-foot{margin-top:auto;font-size:11px;color:var(--ink3);line-height:1.7;border-top:1px solid var(--line);padding-top:13px}
 
-.content{flex:1;min-width:0;max-width:1000px;padding:30px 38px 76px}
+.content{flex:1;min-width:0;max-width:none;padding:30px 44px 76px}
+/* 超宽屏：正文限宽保证一行不过长；编辑器、表格、图表、横幅仍占满整行 */
+@media (min-width:1600px){
+  .masthead,.notice,.callout,.file-hint,.foot{max-width:1120px}
+}
 .masthead{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--line)}
 .eyebrow{font-size:11px;font-weight:600;letter-spacing:.16em;color:var(--accent);margin-bottom:9px}
 h1{font-size:28px;font-weight:600;letter-spacing:-.025em;margin:0 0 6px}
