@@ -30,6 +30,12 @@
     <Using Include="System.Net.Http" />
     <!-- 白色线稿：运行时叠上状态色生成托盘三态图标，用 EmbeddedResource 让托盘/命令行回退也能读 -->
     <EmbeddedResource Include="assets\glyph.png" />
+    <!-- 许可与图标源：设置弹窗「关于」要能打开 NOTICE.md，
+         便携版（单文件 exe）没有源码树，所以按原目录结构拷到输出/发布目录 -->
+    <Content Include="assets\icons\NOTICE.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="assets\icons\plug-zap.svg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="assets\icons\plug-zap-small.svg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="assets\app.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -103,6 +103,28 @@ SQLite  /  MySQL  /  SQL Server
 - **托盘图标**：绿色=运行中，灰色=已停止，红色=异常退出。右键可启停服务、重看日志、改设置；双击唤回主窗口。
 - **点 × 关闭窗口**只最小化到托盘，服务继续跑（可在「设置」里改成「退出并停止服务」）。
 
+### GUI 与图标
+
+控件的界面有三种模式，双击 exe 默认走 WPF 主窗口：
+
+| 模式 | 启动方式 | 说明 |
+| --- | --- | --- |
+| **WPF 主窗口**（默认） | 双击 `SqlController.exe` | 状态卡（状态圆点 / PID / 运行时长 / 两个地址）+ 按钮排 + 实时日志；托盘同时常驻 |
+| 命令行 | `--console` | 可手打 `start` / `stop` / `build` / `logs` 等 |
+| 纯托盘 | `--tray` | 无窗口，右键菜单启停 / 看日志 |
+
+设置弹窗分三组：启动偏好、关闭窗口行为、数据源（SQLite / MySQL / SQL Server 切换后会自动重启后端）、关于与图标许可。
+
+图标是开源图形 **Lucide `plug-zap`**（ISC 许可，经 Iconify 获取），仅做白色重涂 + 纯色圆角底合成：
+
+- `SqlController/assets/icons/plug-zap.svg` — 原版 24×24 线稿，stroke 2
+- `SqlController/assets/icons/plug-zap-small.svg` — stroke 3 的加粗变体，用于 16–32px 小尺寸
+- `SqlController/assets/icons/NOTICE.md` — ISC 许可全文与来源（设置弹窗「关于」可直接打开）
+- `SqlController/assets/app.ico` — 多尺寸 16–256，csproj 的 `ApplicationIcon`
+- `SqlController/assets/glyph.png` — 白色线稿，嵌入程序集，运行时合成托盘三态
+
+改动图标后重新生成：`python tools/make_icon.py`（在 `sql-query-dotnet/` 下执行，需 `pip install pillow playwright` 与 `python -m playwright install chromium`）。不改图标时无需运行——仓库里的 `app.ico` 与 `glyph.png` 已完整可用。
+
 ### 控制接口的鉴权
 
 `/control/*` 会改变进程状态（起停主服务、唤窗口），因此全部要求请求头 `X-Control-Token`，否则返回 **401**。
@@ -206,11 +228,16 @@ SQLite  /  MySQL  /  SQL Server
     ├── SqlPlayground.Tests/   后端单测（xUnit）
     ├── SqlController/         GUI（WPF 托盘，:5288）
     │   ├── Program.cs         布局探测、反代、控制接口
+    │   ├── MainWindow.xaml    WPF 主窗口（状态卡 / 按钮排 / 实时日志）
+    │   ├── WindowShell.cs     WPF 宿主：窗口 + 托盘 + 状态轮询 + 设置保存
     │   ├── ControlAuth.cs     /control/* 令牌鉴权
     │   ├── ProxyOriginGuard.cs 反代入口跨站拦截
     │   ├── BackendProcess.cs  后端进程启停与日志
-    │   └── SettingsWindow.*   设置窗口（启动偏好 + 数据源）
+    │   ├── AppIcons.cs        从嵌入线稿合成应用图标与绿/灰/红托盘三态
+    │   ├── assets/            app.ico / glyph.png / icons/（SVG 与 NOTICE 许可）
+    │   └── SettingsWindow.*   设置窗口（启动偏好 + 关闭行为 + 数据源 + 关于）
     ├── SqlController.Tests/   控制器单测（xUnit）
+    ├── tools/make_icon.py     从 SVG 重新生成 app.ico 与 glyph.png（可选）
     ├── quiz-src/              题库与构建
     │   ├── qbank.py           题库：TABLE_DICT + 95 道题
     │   ├── build.py           校验答案 → 生成 HTML → 同步给应用

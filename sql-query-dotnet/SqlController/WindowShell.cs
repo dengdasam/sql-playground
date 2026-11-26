@@ -171,7 +171,12 @@ internal sealed class WindowShell : IControllerUi
     {
         try
         {
-            var notice = Path.Combine(_projectDir, "assets", "icons", "NOTICE.md");
+            // 许可文件在控制器工程自己名下：<工程根>/SqlController/assets/icons/NOTICE.md
+            // （_projectDir 是工程根，不是 SqlPlayground 目录——见重新编译那里同样的拼接方式）
+            var notice = Path.Combine(_projectDir, "SqlController", "assets", "icons", "NOTICE.md");
+            // 便携版没有源码树，改用 exe 同目录（发布时 assets 会一起拷出）
+            if (!File.Exists(notice))
+                notice = Path.Combine(AppContext.BaseDirectory, "assets", "icons", "NOTICE.md");
             var dlg = new SettingsWindow(_settings.AutoOpenBrowser, _settings.ExitOnClose,
                                          AppIcons.Credit, notice, _dbSettings, _controllerUrl)
             {
