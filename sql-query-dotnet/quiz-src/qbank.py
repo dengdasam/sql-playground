@@ -217,17 +217,19 @@ Q = [
       keywords=["算术运算", "浮点除法", "ORDER BY 别名", "LIMIT"],
       note="这是 SQL 的经典坑：整数除整数在许多方言里是整除，结果为 0。"),
 
-    q(id="A11", cat="基础查询", level="进阶", title="名字第二个字母是 a",
-      desc="找出名字第二个字母为 a 的国家，只返回 name，按名字升序。",
-      hint="下划线 _ 匹配恰好一个字符。",
-      sql="SELECT name FROM world WHERE name LIKE '_a%' ORDER BY name",
+    q(id="A11", cat="基础查询", level="进阶", title="名字最后三个字母",
+      desc="取出每个国家的 name 和它名字的最后 3 个字母 tail，限前 5 行，按名字升序。",
+      hint="SUBSTR 的起始位置可以给负数，表示从末尾倒数。",
+      sql="SELECT name, SUBSTR(name, -3) AS tail FROM world ORDER BY name LIMIT 5",
       strict=True, tables=["world"],
       explain=[
-          "LIKE 里 % 匹配任意长度（含 0 个），_ 匹配恰好一个字符。",
-          "模式 '_a%' 表示：任意一个字符 + a + 任意后缀，即第二个字母是 a。",
-          "注意不能写成 '%a%'，那表示“任意位置含 a”，范围大得多。",
+          "SUBSTR(字符串, 起始位置) 省略第三参数表示「一直取到结尾」。",
+          "起始位置为负数时从末尾倒数：-1 是最后一个字符，-3 是从倒数第三个开始。",
+          "所以 SUBSTR(name, -3) 取最后 3 个字符，等价于 SUBSTR(name, LENGTH(name) - 2, 3)。",
+          "方言差异：SQL Server 用 SUBSTRING（且不支持负起点，要改写为 RIGHT(name, 3)）；PostgreSQL/SQLite/MySQL 都支持负数。",
       ],
-      keywords=["LIKE", "_ 单字符通配", "% 通配符", "ORDER BY"]),
+      keywords=["SUBSTR()", "负索引", "字符串函数", "方言差异"],
+      note="名字不足 3 个字符时返回整个字符串，不会报错。"),
 
     q(id="A12", cat="基础查询", level="进阶", title="没有员工的部门工资合计",
       desc="列出每个部门的名称和工资合计 total_salary；没有员工的部门合计显示 0，按部门名升序。",
@@ -243,7 +245,6 @@ Q = [
       keywords=["LEFT JOIN", "COALESCE", "NULL 处理", "SUM"],
       note="SUM 对全 NULL 组返回 NULL 而不是 0，这是初学者最常见的空值坑。"),
 
-    # ================= B 聚合分组 =================
     q(id="B1", cat="聚合分组", level="入门", title="各大洲国家数量",
       desc="统计每个大洲的国家数量，显示 continent 和 cnt。",
       hint="GROUP BY continent, COUNT(*)",
@@ -394,7 +395,22 @@ Q = [
       keywords=["GROUP_CONCAT", "字符串聚合", "GROUP BY", "方言差异"],
       note="SQL Server 请改用 STRING_AGG(name, ', ')。"),
 
-    # ================= C 多表连接 =================
+
+    q(id="B13", cat="聚合分组", level="进阶", title="条件计数：总数与已完成数",
+      desc="用一条查询返回入库单行总行数 total，以及其中状态为 COMPLETED 的行数 done。",
+      hint="SUM(条件) 里条件为真算 1、为假算 0。",
+      sql="SELECT COUNT(*) AS total, SUM(bill_status='COMPLETED') AS done FROM winv_inbound_order_lines",
+      tables=["winv_inbound_order_lines"],
+      explain=[
+          "COUNT(*) 数所有行，得到 total。",
+          "bill_status='COMPLETED' 是一个布尔表达式，SQLite/MySQL 里为真返回 1、为假返回 0。",
+          "外面套 SUM 把 1 累加起来，正好等于“满足条件的行数”，这就是条件计数。",
+          "不能写 COUNT(bill_status='COMPLETED')：COUNT 只数非 NULL 值，而 0 不是 NULL，会把不满足的也算进去。",
+          "标准写法（跨库最稳）：SUM(CASE WHEN bill_status='COMPLETED' THEN 1 ELSE 0 END)。",
+      ],
+      keywords=["COUNT(*)", "条件计数", "SUM", "CASE WHEN", "布尔表达式"],
+      note="COUNT(表达式) 会把 0 也算进去，条件计数必须用 SUM(CASE ...)。"),
+
     q(id="C1", cat="多表连接", level="入门", title="员工与部门",
       desc="查出每个员工的姓名、工资和部门名称（name, salary, dept_name）。",
       hint="emp.dept_id = dept.id",
@@ -523,7 +539,6 @@ Q = [
       ],
       keywords=["常量列", "AS 别名", "SELECT", "LIMIT"]),
 
-    # ================= D 子查询 =================
     q(id="D1", cat="子查询", level="进阶", title="比某国人口多",
       desc="查出人口比 Russia 多的国家名和人口。",
       hint="标量子查询：(SELECT population FROM world WHERE name = 'Russia')",
@@ -639,7 +654,21 @@ Q = [
       keywords=["派生表", "聚合嵌套", "HAVING", "子查询"],
       note="聚合函数不能直接嵌套，遇到“聚合值的聚合”就把它拆成子查询。"),
 
-    # ================= E 窗口函数 =================
+
+    q(id="D10", cat="子查询", level="困难", title="EXISTS 与 IN 的等价写法",
+      desc="用 EXISTS 找出至少有一名员工的部门名，按名称升序。",
+      hint="EXISTS 只关心子查询有没有返回行，不关心返回什么。",
+      sql="SELECT d.name FROM dept d WHERE EXISTS (SELECT 1 FROM emp e WHERE e.dept_id = d.id) ORDER BY d.name",
+      strict=True, tables=["dept", "emp"],
+      explain=[
+          "EXISTS 的子查询只要返回至少一行就为真，所以 SELECT 1 就够了——写成 SELECT * 也能跑，但没必要取数据。",
+          "关键差别：EXISTS 是**相关子查询**，它的条件 e.dept_id = d.id 引用了外层的 d，会对外层每一行分别求值。",
+          "和 IN 写法 SELECT name FROM dept WHERE id IN (SELECT dept_id FROM emp) 结果相同。",
+          "选择建议：子查询结果可能含 NULL 时用 EXISTS（NOT IN 遇 NULL 会全部失效）；外表小、子查询表大时，EXISTS 通常更快。",
+      ],
+      keywords=["EXISTS", "相关子查询", "半连接", "IN 子查询", "性能取舍"],
+      note="NOT IN (含 NULL 的子查询) 会返回空结果，这是本仓库 G 组专门讲过的坑；这种情况请改用 NOT EXISTS。"),
+
     q(id="E1", cat="窗口函数", level="进阶", title="全球人口排名",
       desc="查出所有国家名、人口及人口排名（人口多的排前面，并列同名次），列名 rk。",
       hint="RANK() OVER (ORDER BY population DESC)",
@@ -725,7 +754,7 @@ Q = [
       ],
       keywords=["ROW_NUMBER()", "PARTITION BY", "Nth 取值"]),
 
-    # ================= F 条件与字符串 =================
+    # ================= F 条件字符串 =================
 
     q(id="E8", cat="窗口函数", level="进阶", title="按人口四分位分组",
       desc="按人口降序把 22 个国家均分成 4 档，输出 name 和档位 quartile，按人口降序。",
@@ -782,7 +811,36 @@ Q = [
       keywords=["SUM() OVER", "窗口函数", "占比计算", "GROUP BY", "百分比计算"],
       note="“聚合结果再聚合”是一类高频需求，窗口函数的 OVER () 空括号就是全表范围。"),
 
-    # ================= F 条件字符串 =================
+
+
+    q(id="E12", cat="窗口函数", level="进阶", title="前后各一行求和（滑动窗口）",
+      desc="按工资升序排列员工，输出 name、salary 以及「前一行 + 本行 + 后一行」的工资和 win3，按工资升序。",
+      hint="ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING。",
+      sql="SELECT name, salary, SUM(salary) OVER (ORDER BY salary ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) AS win3 FROM emp ORDER BY salary",
+      strict=True, tables=["emp"],
+      explain=[
+          "窗口函数默认的帧是 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW（从开头累计到当前行）。",
+          "ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING 把帧改成「上一行到下一行」，共 3 行，所以叫滑动窗口。",
+          "ROWS 按**实际行数**偏移；RANGE 按**值**偏移——有并列值时两者结果不同，这是最容易混的地方。",
+          "第一行没有上一行、最后一行没有下一行，帧会自动截断，不会报错。",
+      ],
+      keywords=["窗口帧", "ROWS BETWEEN", "PRECEDING", "FOLLOWING", "滑动窗口"],
+      note="移动平均就是这套写法：把 SUM 换成 AVG 并扩大帧范围即可。"),
+
+    q(id="E13", cat="窗口函数", level="困难", title="相邻工资差（环比）",
+      desc="按工资升序排列员工，输出 name、salary 和与前一名的差额 diff（第一个为 NULL），按工资升序。",
+      hint="当前行减去 LAG(当前行)。",
+      sql="SELECT name, salary, salary - LAG(salary) OVER (ORDER BY salary) AS diff FROM emp ORDER BY salary",
+      strict=True, tables=["emp"],
+      explain=[
+          "LAG(salary) 取上一行的 salary，窗口按 ORDER BY salary 排列。",
+          "当前值减上一行值就得到「相邻两行的差」，这正是环比/环比增长的计算骨架。",
+          "第一行没有上一行，LAG 返回 NULL，所以 diff 也是 NULL——NULL 参与算术结果仍是 NULL，不是 0。",
+          "若要显示 0，用 COALESCE(salary - LAG(salary) OVER (...), 0)；想看增长率则再除以 LAG 值。",
+      ],
+      keywords=["LAG()", "环比", "偏移函数", "NULL 传播", "窗口函数"],
+      note="NULL 参与四则运算，结果一律是 NULL，不会自动当 0 处理。"),
+
     q(id="F1", cat="条件字符串", level="入门", title="2010 年物理奖得主",
       desc="查出 2010 年 Physics 奖项的获奖者姓名。",
       hint="两个条件用 AND 连接。",
@@ -869,7 +927,7 @@ Q = [
       ],
       keywords=["length()", "字符串函数"]),
 
-    # ================= G WMS 实战 =================
+    # ================= G WMS实战 =================
 
     q(id="F8", cat="条件字符串", level="入门", title="GDP 缺失时显示占位文字",
       desc="列出 5 个国家的 name 和 gdp_text：GDP 为 NULL 时显示 '无数据'，否则显示 GDP 的文本形式。",
@@ -912,7 +970,37 @@ Q = [
       ],
       keywords=["LENGTH()", "SUBSTR()", "字符串函数", "方言差异"]),
 
-    # ================= G WMS实战 =================
+
+
+    q(id="F11", cat="条件字符串", level="困难", title="人口分四档（CASE 嵌套）",
+      desc="按人口把国家分成四档：超过 10 亿 '超大'、超过 1 亿 '大'、超过 1000 万 '中'、其余 '小'，输出 name 和 size，按人口降序。",
+      hint="CASE 从上往下匹配，命中第一个就停。",
+      sql="SELECT name, CASE WHEN population > 1000000000 THEN '超大' WHEN population > 100000000 THEN '大' WHEN population > 10000000 THEN '中' ELSE '小' END AS size FROM world ORDER BY population DESC",
+      strict=True, tables=["world"],
+      explain=[
+          "CASE WHEN 是自上而下求值的，一旦某个条件为真就返回对应结果，后面不再判断。",
+          "所以顺序必须从最严格到最宽松：如果先写 population > 10000000，那么 13 亿的中国也会被判成 '中'。",
+          "ELSE 兜住所有不满足前面条件的情况；省略 ELSE 时返回 NULL。",
+          "这种写法本质是「分段函数」，比分多个 UNION 查询清晰得多。",
+      ],
+      keywords=["CASE WHEN", "条件顺序", "分层判断", "ELSE"],
+      note="CASE 的顺序错乱是高频错误：永远把最严格的条件放最前面。"),
+
+    q(id="F12", cat="条件字符串", level="进阶", title="用 NULLIF 避免除零",
+      desc="计算人口密度 density（population / area，保留 1 位小数），按密度降序取前 5，输出 name 和 density。",
+      hint="NULLIF(area, 0) 在面积为 0 时返回 NULL，让整条除法变成 NULL 而不是报错。",
+      sql="SELECT name, ROUND(population*1.0/NULLIF(area,0), 1) AS density FROM world ORDER BY density DESC LIMIT 5",
+      strict=True, tables=["world"],
+      explain=[
+          "NULLIF(a, b)：a 等于 b 时返回 NULL，否则返回 a。NULLIF(area, 0) 就是把「面积为 0」转成 NULL。",
+          "为什么要转：除以 0 在 SQLite 返回 NULL，但在 SQL Server / PostgreSQL 会直接抛错中断查询。",
+          "转成 NULL 后除法结果是 NULL（安全），整条查询不会因为一行坏数据全军覆没。",
+          "population*1.0 是为了强制浮点运算，否则整数相除会截断成 0。",
+          "需要把 NULL 显示成 0 时再套一层 COALESCE(..., 0)。",
+      ],
+      keywords=["NULLIF", "除零保护", "COALESCE", "ROUND", "浮点除法"],
+      note="NULLIF 是「把某个值变成 NULL」，COALESCE 是「把 NULL 变成某个值」，两者常配对使用。"),
+
     q(id="G1", cat="WMS实战", level="进阶", title="入库单行：最近 30 天按天统计",
       desc="统计 winv_inbound_order_lines 表最近 30 天（含今天）每天创建的 ID 个数，返回 create_date, cnt，按日期升序。",
       hint="SQLite 用 date('now','-29 days')；今天算第 1 天，共 30 天。",
@@ -1097,6 +1185,39 @@ Q = [
       note="UNION 与 UNION ALL 的关键差别就是“去不去重”，去重有排序开销，确定无重复时优先 UNION ALL。"),
 
     # ================= H 新增：补齐常用但未覆盖的语法 =================
+
+
+
+    q(id="G15", cat="WMS实战", level="困难", title="递归 CTE 生成序号表",
+      desc="用递归 CTE 生成 1 到 6 的序号，输出 n 和它的平方 sq。",
+      hint="WITH RECURSIVE 名字 AS (初始值 UNION ALL 递推)。",
+      sql="WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n < 6) SELECT n, n*n AS sq FROM seq",
+      strict=True, tables=["winv_inbound_order_lines"],
+      explain=[
+          "结构固定为三部分：WITH RECURSIVE 名字 AS ( 初始成员 UNION ALL 递归成员 )。",
+          "初始成员 SELECT 1 产生第一行；递归成员 SELECT n+1 FROM seq WHERE n < 6 每次基于上一轮结果生成新行。",
+          "WHERE n < 6 是**终止条件**，没有它就会无限递归——SQLite 默认递归上限 1000 层，超了报错。",
+          "UNION ALL 保留所有行；写成 UNION 会去重，遇到重复值可能导致递归提前结束。",
+          "实际用途：补齐缺失日期（生成日历表再 LEFT JOIN 业务数据）、展开层级 BOM、树形结构向上/向下遍历。",
+      ],
+      keywords=["WITH RECURSIVE", "递归 CTE", "UNION ALL", "终止条件", "序列生成"],
+      note="MySQL 8.0+ / PostgreSQL / SQL Server / SQLite 3.8.3+ 都支持递归 CTE；MySQL 5.7 不支持。"),
+
+    q(id="G16", cat="WMS实战", level="困难", title="多列组合筛选（行值 IN）",
+      desc="筛出「ERP 来源且 RECEIVING」或「WMS 来源且 COMPLETED」的入库单行，按 sku、bill_status 汇总行数 cnt，按 sku、bill_status 升序。",
+      hint="(列1, 列2) IN (VALUES (...), (...))：把多列当成一个整体匹配，而不是拆成 OR。",
+      sql="SELECT sku, bill_status, COUNT(*) AS cnt FROM winv_inbound_order_lines WHERE (source_system_code, bill_status) IN (VALUES ('ERP','RECEIVING'), ('WMS','COMPLETED')) GROUP BY sku, bill_status ORDER BY sku, bill_status",
+      strict=True, tables=["winv_inbound_order_lines"],
+      explain=[
+          "(a, b) IN (VALUES (v1,w1), (v2,w2)) 是「行值构造器」：把两列当整体去和每一组值比对。",
+          "它表达的是「组合相等」——必须 a=v1 且 b=w1，或 a=v2 且 b=w2，两组之间是「或」、组内是「且」。",
+          "最容易犯的错：写成 source_system_code IN ('ERP','WMS') OR bill_status IN ('RECEIVING','COMPLETED')。",
+          "那样会把条件打散成「来源是 ERP/WMS」或「状态是 RECEIVING/COMPLETED」——样例里这种行恰好覆盖全部 113 行，而正确的组合只命中 42 行。",
+          "两列都只有一个取值时才能用 AND/OR 简化；一旦要匹配多组组合，必须用行值 IN。",
+          "SQLite 3.15+ / PostgreSQL / MySQL 8.0+ 支持 VALUES 行值；SQL Server 需改用表值构造器 JOIN。",
+      ],
+      keywords=["多列 IN", "行值构造器", "VALUES", "组合条件", "OR 陷阱"],
+      note="行值 IN 的组内是 AND、组间是 OR。判断自己写对没有：把条件逐组展开成 (a=v1 AND b=w1) OR (a=v2 AND b=w2) 核对一遍。"),
 
 ]
 

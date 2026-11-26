@@ -5,8 +5,8 @@
 | 模块 | 用途 | 形态 |
 | --- | --- | --- |
 | **查询实验室** | 写 SQL 查真实数据库，结果自动出表格和图表 | .NET 后端 + 浏览器页面 |
-| **SQL 练习场** | 78 道题，答题 / 速查双模式，写完即判分 | 单文件 HTML |
-| **SQL 闯关** | 同样 78 道题，SQLZoo 式分步引导，通过自动进下一关 | 单文件 HTML |
+| **SQL 练习场** | 86 道题，答题 / 速查双模式，写完即判分 | 单文件 HTML |
+| **SQL 闯关** | 同样 86 道题，SQLZoo 式分步引导，通过自动进下一关 | 单文件 HTML |
 
 三个页面顶部共用一条导航，随时互跳：
 
@@ -165,17 +165,17 @@ SQLite  /  MySQL  /  SQL Server
 
 ## SQL 题库
 
-78 道题，7 个知识点，每题都带**表字段说明**和**解题步骤**：
+86 道题，7 个知识点，每题都带**表字段说明**和**解题步骤**：
 
 | 分类 | 题数 | 覆盖内容 |
 | --- | --- | --- |
-| 基础查询 | 12 | WHERE / LIKE / BETWEEN / ORDER BY / LIMIT / 别名 / 算术 / 整数除法坑 / `_` 通配 / 常量列 |
-| 聚合分组 | 12 | GROUP BY / HAVING / COUNT / SUM / AVG / 极值 / `COUNT(DISTINCT)` / `GROUP_CONCAT` / 聚合表达式 |
+| 基础查询 | 12 | WHERE / LIKE / BETWEEN / ORDER BY / LIMIT / 别名 / 算术 / 整数除法坑 / `_` 通配 / `SUBSTR` 负索引 / 常量列 |
+| 聚合分组 | 13 | GROUP BY / HAVING / COUNT / SUM / AVG / 极值 / `COUNT(DISTINCT)` / `GROUP_CONCAT` / 条件计数 / 聚合表达式 |
 | 多表连接 | 10 | JOIN / LEFT JOIN / 反连接 / 自连接 / `COUNT(列)` 与 `COUNT(*)` 的坑 / 一对多放大 |
-| 子查询 | 9 | 标量、IN、EXISTS、相关子查询、分组取极值、聚合值的聚合、派生表 |
-| 窗口函数 | 11 | RANK / DENSE_RANK / ROW_NUMBER / LAG / LEAD / NTILE / FIRST_VALUE / 累计求和 / 分组 TopN / `SUM(SUM()) OVER ()` |
-| 条件字符串 | 10 | CASE / 条件聚合（行转列）/ COALESCE / 字符串拼接 / replace / LENGTH / SUBSTR / 条件顺序 |
-| WMS 实战 | 14 | 按天统计、UNION 去重合并、占比、一对多计数放大、NOT IN 的 NULL 陷阱、HAVING 筛聚合 |
+| 子查询 | 10 | 标量、IN、EXISTS（含与 IN 的取舍）、相关子查询、分组取极值、聚合值的聚合、派生表 |
+| 窗口函数 | 13 | RANK / DENSE_RANK / ROW_NUMBER / LAG / LEAD / NTILE / FIRST_VALUE / `ROWS BETWEEN` 滑动窗口 / 环比 / 累计求和 / 分组 TopN |
+| 条件字符串 | 12 | CASE（含嵌套分层）/ 条件聚合（行转列）/ COALESCE / NULLIF 除零保护 / 字符串拼接 / replace / LENGTH / SUBSTR |
+| WMS 实战 | 16 | 按天统计、UNION 去重合并、递归 CTE、多列 IN 组合筛选、占比、一对多计数放大、NOT IN 的 NULL 陷阱 |
 
 每道题打开就能看到：
 
@@ -212,7 +212,7 @@ SQLite  /  MySQL  /  SQL Server
     │   └── SettingsWindow.*   设置窗口（启动偏好 + 数据源）
     ├── SqlController.Tests/   控制器单测（xUnit）
     ├── quiz-src/              题库与构建
-    │   ├── qbank.py           题库：TABLE_DICT + 78 道题
+    │   ├── qbank.py           题库：TABLE_DICT + 86 道题
     │   ├── build.py           校验答案 → 生成 HTML → 同步给应用
     │   ├── assets/            内嵌的 sql.js 与 wasm
     │   ├── src/*.template.html 源模板
