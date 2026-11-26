@@ -216,4 +216,16 @@ VALIDATE_ONLY=1 python build.py
 
 ## 许可
 
-目前未附 license 文件。如需开源授权，可补一份 MIT；在那之前默认保留所有权利。
+[MIT License](LICENSE) © 2026 dengdasam
+
+可自由使用、修改、分发、商用，保留版权声明即可。
+
+### 第三方组件
+
+| 组件 | 用途 | 许可 |
+| --- | --- | --- |
+| SQLite | 数据库引擎 | Public Domain |
+| sql.js | 浏览器内运行 SQLite（题库判分） | MIT |
+| Microsoft.Data.Sqlite | .NET 的 SQLite 驱动 | MIT |
+| MySqlConnector | MySQL 驱动 | MIT |
+| Microsoft.Data.SqlClient | SQL Server 驱动 | MIT |
