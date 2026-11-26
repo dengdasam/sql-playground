@@ -22,14 +22,25 @@ SQL 工具箱   [查询实验室]  练习场  闯关
 
 ### 只想刷题（零依赖，30 秒）
 
-双击仓库里这两个文件之一：
+成品是单文件 HTML，但**不入库**（约 1MB，由源文件生成）。克隆后先生成一次：
+
+```bash
+cd sql-playground/sql-query-dotnet
+python quiz-src/build.py
+```
+
+然后双击这两个文件之一：
 
 ```
-sql-quiz/SQL练习场.html    答题 + 速查
-sql-quiz/SQL闯关.html      分步引导
+quiz-src/SQL练习场.html    答题 + 速查
+quiz-src/SQL闯关.html      分步引导
 ```
 
 单文件约 1MB，SQL 在浏览器里用 SQLite 真实执行、与标准答案比对结果集，进度存 localStorage。
+需要 Python 3；生成后就是纯离线文件，拷到任何地方都能双击打开。
+
+> 为什么成品不入库：两份 1MB 的 HTML 完全由 `quiz-src/src/*.template.html` + `qbank.py` + `assets/` 决定，
+> 入库等于把同一份内容存两遍。构建已验证字节可复现。
 
 ### 想查数据库（需要 .NET 10 SDK）
 
@@ -183,26 +194,31 @@ SQLite  /  MySQL  /  SQL Server
 
 ```
 .
-├── sql-query-dotnet/          .NET 全栈应用
-│   ├── SqlPlayground/         后端（ASP.NET Core，:5280）
-│   │   ├── Program.cs         端点注册、压缩、父进程看护
-│   │   ├── QueryService.cs    只读查询、元数据、预置统计
-│   │   ├── DbConfig.cs        三种数据源的连接串与服务
-│   │   ├── wwwroot/           查询页 + quiz/（题库副本）
-│   │   └── wms.db             样例 SQLite 库
-│   ├── SqlController/         GUI（WPF 托盘，:5288）
-│   │   ├── Program.cs         布局探测、反代、控制接口
-│   │   ├── BackendProcess.cs  后端进程启停与日志
-│   │   └── SettingsWindow.*   设置窗口（启动偏好 + 数据源）
-│   ├── README.md              应用详细说明
-│   └── 发布.bat               一键打包（默认便携版，lite 出轻量版）
-│
-└── sql-quiz/                  题库与构建
-    ├── SQL练习场.html          成品（可直接双击）
-    ├── SQL闯关.html            成品
-    ├── qbank.py               题库：TABLE_DICT + 57 道题
-    ├── build.py               校验答案 → 生成 HTML → 同步给应用
-    └── src/*.template.html     源模板
+└── sql-query-dotnet/          工程根（应用 + 题库构建都在这里）
+    ├── SqlPlayground/         后端（ASP.NET Core，:5280）
+    │   ├── Program.cs         端点注册、压缩、父进程看护
+    │   ├── QueryService.cs    只读查询、元数据、预置统计
+    │   ├── ReadOnlyGuard.cs   只读语句校验（剥离字面量/注释 + 首关键字白名单）
+    │   ├── OriginGuard.cs     Host / Origin 跨站校验
+    │   ├── DbConfig.cs        三种数据源的连接串与服务
+    │   ├── wwwroot/           查询页 + quiz/（题库副本，构建产物）
+    │   └── wms.db             样例 SQLite 库
+    ├── SqlPlayground.Tests/   后端单测（xUnit）
+    ├── SqlController/         GUI（WPF 托盘，:5288）
+    │   ├── Program.cs         布局探测、反代、控制接口
+    │   ├── ControlAuth.cs     /control/* 令牌鉴权
+    │   ├── ProxyOriginGuard.cs 反代入口跨站拦截
+    │   ├── BackendProcess.cs  后端进程启停与日志
+    │   └── SettingsWindow.*   设置窗口（启动偏好 + 数据源）
+    ├── SqlController.Tests/   控制器单测（xUnit）
+    ├── quiz-src/              题库与构建
+    │   ├── qbank.py           题库：TABLE_DICT + 57 道题
+    │   ├── build.py           校验答案 → 生成 HTML → 同步给应用
+    │   ├── assets/            内嵌的 sql.js 与 wasm
+    │   ├── src/*.template.html 源模板
+    │   └── *.html             成品（构建产物，不入库）
+    ├── README.md              应用详细说明
+    └── 发布.bat               一键打包（默认便携版，lite 出轻量版）
 ```
 
 ---
@@ -231,17 +247,19 @@ SQLite  /  MySQL  /  SQL Server
 ## 加题 / 改题
 
 ```bash
-# 编辑 qbank.py 后
-python sql-quiz/build.py
+cd sql-playground/sql-query-dotnet
+
+# 编辑 quiz-src/qbank.py 后
+python quiz-src/build.py
 ```
 
-脚本会先逐题在 SQLite 上执行验证（结果不能为空、必须标注涉及的表和解题步骤），通过后生成两个 HTML，并自动同步到 `sql-query-dotnet/SqlPlayground/wwwroot/quiz/`。
+脚本会先逐题在 SQLite 上执行验证（结果不能为空、必须标注涉及的表和解题步骤），通过后生成两个 HTML，并自动同步到 `SqlPlayground/wwwroot/quiz/`。
 
 只校验不生成：
 
 ```bash
 set VALIDATE_ONLY=1        # Windows
-VALIDATE_ONLY=1 python build.py
+cd quiz-src && VALIDATE_ONLY=1 python build.py
 ```
 
 ---

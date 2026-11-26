@@ -13,8 +13,17 @@ sql-query-dotnet/dist-lite/
 # ---------- 本地工作区数据（记忆、配置、临时） ----------
 .workbuddy/
 
+# ---------- 题库构建产物（不入库，由 quiz-src/build.py 生成） ----------
+# 两份单文件 HTML 各约 1MB，内容完全由 src/*.template.html + qbank.py + assets/ 决定。
+# 真正入库的是这几份源文件；产物重跑 `python quiz-src/build.py` 即可得到（已验证字节一致）。
+# wwwroot/quiz/ 下那两份是发布 exe 时必须存在的副本，同样由脚本生成。
+sql-query-dotnet/quiz-src/SQL练习场.html
+sql-query-dotnet/quiz-src/SQL闯关.html
+sql-query-dotnet/SqlPlayground/wwwroot/quiz/practice.html
+sql-query-dotnet/SqlPlayground/wwwroot/quiz/challenge.html
+
 # ---------- 已归档的 Python 版服务 ----------
-sql-quiz/legacy-python/
+sql-query-dotnet/quiz-src/legacy-python/
 
 # ---------- 系统文件 ----------
 .DS_Store

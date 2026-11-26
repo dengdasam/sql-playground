@@ -239,16 +239,24 @@ def build_html():
 # ---------------- 同步给 .NET 版查询页 ----------------
 # 查询页（wwwroot/index.html）的侧栏有「SQL 题库」入口，链接到 /quiz/practice.html 与 /quiz/challenge.html；
 # 这两个文件由本脚本在构建后复制过去，发布 exe 时会随 wwwroot 一起打进产物。
-PROJECT_DOTNET = os.path.join(os.path.dirname(BASE), "sql-query-dotnet")
+#
+# 目录合并后本脚本位于 <工程根>/quiz-src/，所以工程根就是上一级。
+# wwwroot/quiz/*.html 是**构建产物**，不入库（见 .gitignore），改题后必须重跑本脚本。
+PROJECT_DOTNET = os.path.dirname(BASE)
 WEBAPP_QUIZ = os.path.join(PROJECT_DOTNET, "SqlPlayground", "wwwroot", "quiz")
 SYNC_MAP = [("SQL练习场.html", "practice.html"), ("SQL闯关.html", "challenge.html")]
 
 
 def sync_to_webapp():
-    """把成品复制到 .NET 版的静态目录；没有该工程时静默跳过（单独使用题库也不受影响）。"""
-    if not os.path.isdir(PROJECT_DOTNET):
-        print("未找到 sql-query-dotnet 工程，跳过同步")
-        return
+    """把成品复制到 .NET 版的静态目录。
+
+    目标文件不入库，所以这里是它们唯一的来源：找不到工程目录直接报错退出，
+    而不是静默跳过——静默跳过会让发布出来的 exe 缺题库页面，且很难察觉。
+    """
+    if not os.path.isdir(os.path.join(PROJECT_DOTNET, "SqlPlayground")):
+        raise SystemExit(
+            "错误：未找到 SqlPlayground 工程目录（%s）。\n"
+            "本脚本应位于 <工程根>/quiz-src/ 下，请不要单独移动它。" % PROJECT_DOTNET)
     os.makedirs(WEBAPP_QUIZ, exist_ok=True)
     for src_name, dst_name in SYNC_MAP:
         src = os.path.join(BASE, src_name)

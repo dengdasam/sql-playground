@@ -48,9 +48,9 @@
 | `/quiz/practice.html` | 练习场：答题 + 速查双模式，57 题 |
 | `/quiz/challenge.html` | 闯关：SQLZoo 式分步引导，57 关 |
 
-这两个页面由 `sql-quiz\build.py` 构建时自动同步到 `SqlPlayground\wwwroot\quiz\`，发布 exe 时随 `wwwroot` 一起打进产物——所以便携版拷到别的电脑，题库入口照样能用。
+这两个页面由 `quiz-src\build.py` 构建时自动同步到 `SqlPlayground\wwwroot\quiz\`，发布 exe 时随 `wwwroot` 一起打进产物——所以便携版拷到别的电脑，题库入口照样能用。
 
-改题流程：编辑 `sql-quiz\qbank.py` → 运行 `python sql-quiz\build.py`（会自动同步）→ 需要更新 exe 时再跑 `发布.bat`。
+改题流程：编辑 `quiz-src\qbank.py` → 运行 `python quiz-src\build.py`（会自动同步）→ 需要更新 exe 时再跑 `发布.bat`。
 
 ## 重新打包
 
