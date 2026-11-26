@@ -513,19 +513,20 @@ Q = [
       keywords=["自连接", "表别名", "JOIN", "组合去重"],
       note="自连接一定要想清楚“方向性”：用 < 排除自配和双向重复。"),
 
-    q(id="C9", cat="多表连接", level="困难", title="只有空部门（反连接）",
-      desc="找出一个员工都没有的部门名称，只返回 name。",
-      hint="LEFT JOIN 后筛 e.id IS NULL，或用 NOT EXISTS。",
-      sql="SELECT d.name FROM dept d LEFT JOIN emp e ON e.dept_id = d.id WHERE e.id IS NULL",
+    q(id="C9", cat="多表连接", level="困难", title="各部门人数与平均工资（含空部门）",
+      desc="列出每个部门的名称、员工人数 emp_cnt 和平均工资 avg_sal（四舍五入到整数），按人数降序。没有员工的部门也要出现。",
+      hint="LEFT JOIN 后人数要用 COUNT(e.id)，不能写 COUNT(*)。",
+      sql="SELECT d.name, COUNT(e.id) AS emp_cnt, ROUND(AVG(e.salary),0) AS avg_sal FROM dept d LEFT JOIN emp e ON e.dept_id = d.id GROUP BY d.id, d.name ORDER BY emp_cnt DESC",
       tables=["dept", "emp"],
       explain=[
-          "LEFT JOIN 保留左表全部行，没有匹配的部门右边各列都是 NULL。",
-          "WHERE e.id IS NULL 就筛出“没匹配上”的那部分，这叫反连接。",
-          "注意必须判 IS NULL 而不能写 = NULL：NULL 和任何值比较（包括 NULL）结果都是 UNKNOWN，永远不成立。",
-          "等价写法：SELECT name FROM dept WHERE NOT EXISTS (SELECT 1 FROM emp WHERE emp.dept_id = dept.id)。",
+          "以 dept 为主表 LEFT JOIN emp，保证 Finance（零人部门）也出现在结果里。",
+          "关键陷阱：这里必须用 COUNT(e.id) 而不是 COUNT(*)。LEFT JOIN 后 Finance 会留下一行、e.id 为 NULL，COUNT(*) 把它数成 1 人（错误），COUNT(e.id) 只数非 NULL 所以得 0（正确）。",
+          "AVG(e.salary) 对全 NULL 的组返回 NULL，所以 Finance 的平均工资显示为空，而不是 0——空和 0 在业务上含义不同，不该强行补 0。",
+          "GROUP BY 带上 d.id 是为了在部门重名时仍能正确分组。",
+          "这是「左连接 + 聚合」最常见的组合，几乎每个做报表的人都会踩一次 COUNT(*) 的坑。",
       ],
-      keywords=["反连接", "LEFT JOIN", "IS NULL", "NOT EXISTS", "NULL 语义"],
-      note="= NULL 永远为假，判空只能用 IS NULL，这是 SQL 最经典的坑。"),
+      keywords=["LEFT JOIN", "COUNT(列) vs COUNT(*)", "AVG", "NULL 分组", "一对多放大"],
+      note="口诀：LEFT JOIN 之后要数「对方表的行数」，一定用 COUNT(对方表主键)，永远别用 COUNT(*)。"),
 
     q(id="C10", cat="多表连接", level="入门", title="给每行加一列常量",
       desc="从 emp 取前 3 行，返回员工姓名 name 和公司名 company（固定为 'WMS 部'）。",
@@ -538,6 +539,22 @@ Q = [
           "列名固定的常量列常用于 UNION 拼接时标注来源，或导出报表加表头信息。",
       ],
       keywords=["常量列", "AS 别名", "SELECT", "LIMIT"]),
+
+
+    q(id="C11", cat="多表连接", level="进阶", title="各部门工资占公司总额的比重",
+      desc="按部门汇总工资，输出部门名 name、工资合计 total 和占全公司工资总额的百分比 pct（保留 1 位小数），按 total 降序。",
+      hint="分母用标量子查询取全公司总额；注意先 JOIN 再分组，没有员工的部门不会出现。",
+      sql="SELECT d.name, SUM(e.salary) AS total, ROUND(SUM(e.salary) * 100.0 / (SELECT SUM(salary) FROM emp), 1) AS pct FROM dept d JOIN emp e ON e.dept_id = d.id GROUP BY d.id, d.name ORDER BY total DESC",
+      strict=True, tables=["dept", "emp"],
+      explain=[
+          "JOIN（内连接）只保留有员工匹配的部门，所以 Finance 这种空部门不会出现——这也符合“占公司总额比重”的业务语义。",
+          "分子 SUM(e.salary) 是本部门的合计，GROUP BY 把它按部门算出来。",
+          "分母是标量子查询，独立求出全公司工资总额，与外层分组无关。",
+          "乘 100.0 保证浮点除法；ROUND(...,1) 保留一位小数。",
+          "若想显示没有员工的部门（占比 0），要改成 LEFT JOIN + COALESCE，见另一道 A12 的写法。",
+      ],
+      keywords=["JOIN", "标量子查询", "百分比计算", "GROUP BY", "INNER vs LEFT"],
+      note="内连接会静默丢弃无匹配的行：算“各分类占比”时，若总和需要包含全部，记得核对分母口径。"),
 
     q(id="D1", cat="子查询", level="进阶", title="比某国人口多",
       desc="查出人口比 Russia 多的国家名和人口。",
@@ -668,6 +685,22 @@ Q = [
       ],
       keywords=["EXISTS", "相关子查询", "半连接", "IN 子查询", "性能取舍"],
       note="NOT IN (含 NULL 的子查询) 会返回空结果，这是本仓库 G 组专门讲过的坑；这种情况请改用 NOT EXISTS。"),
+
+
+    q(id="D11", cat="子查询", level="困难", title="获奖年份的连续区间（间隙与孤岛）",
+      desc="列出诺奖数据中「连续获奖」的年份区间，输出起始年 start_yr、结束年 end_yr 和连续年数 span，按起始年升序。",
+      hint="用 yr - ROW_NUMBER() 给连续年份打同一个分组标记。",
+      sql="WITH y AS (SELECT DISTINCT yr FROM nobel), g AS (SELECT yr, yr - ROW_NUMBER() OVER (ORDER BY yr) AS grp FROM y) SELECT MIN(yr) AS start_yr, MAX(yr) AS end_yr, COUNT(*) AS span FROM g GROUP BY grp ORDER BY start_yr",
+      strict=True, tables=["nobel"],
+      explain=[
+          "先 DISTINCT 去重拿到所有“出现过的年份”（2000—2006、2010、2015）。",
+          "核心技巧：对有序年份编号 ROW_NUMBER()，再算 yr - 行号。",
+          "连续年份里，yr 每加 1、行号也加 1，两者之差恒定不变；一旦断档，差值就跳变。",
+          "所以同一个差值就是一个“连续段（孤岛）”，按它分组再取 MIN/MAX/COUNT 就得到区间。",
+          "这是 SQL 经典的「间隙与孤岛（gaps and islands）」问题，考勤连续打卡、连续登录天数都是同一个套路。",
+      ],
+      keywords=["间隙与孤岛", "ROW_NUMBER()", "窗口函数", "CTE", "分组技巧"],
+      note="换成日期也能用：date - ROW_NUMBER() 需先转成数值（julianday），直接相减会报错。"),
 
     q(id="E1", cat="窗口函数", level="进阶", title="全球人口排名",
       desc="查出所有国家名、人口及人口排名（人口多的排前面，并列同名次），列名 rk。",
@@ -1218,6 +1251,118 @@ Q = [
       ],
       keywords=["多列 IN", "行值构造器", "VALUES", "组合条件", "OR 陷阱"],
       note="行值 IN 的组内是 AND、组间是 OR。判断自己写对没有：把条件逐组展开成 (a=v1 AND b=w1) OR (a=v2 AND b=w2) 核对一遍。"),
+
+
+
+
+
+
+
+
+    q(id="G17", cat="WMS实战", level="进阶", title="按周汇总入库量",
+      desc="按自然周统计入库行数 cnt 和计划量合计 qty（保留 1 位小数），周标识格式化为 '年-W周序'，按周升序。",
+      hint="strftime('%Y-W%W', 日期列) 生成周标识。",
+      sql="SELECT strftime('%Y-W%W', creation_date) AS wk, COUNT(*) AS cnt, ROUND(SUM(plan_qty),1) AS qty FROM winv_inbound_order_lines GROUP BY wk ORDER BY wk",
+      strict=True, tables=["winv_inbound_order_lines"],
+      explain=[
+          "creation_date 是文本 'YYYY-MM-DD HH:MM:SS'，SQLite 的日期函数可以直接解析这种标准格式。",
+          "strftime('%Y-W%W', ...) 拼出「年-W周序」的字符串，如 2026-W41；%W 以周一为一周开始。",
+          "%Y-W%W 的字符串可以直接按字典序排序，年和周都是补零的，顺序天然正确。",
+          "MySQL 对照：DATE_FORMAT(creation_date, '%Y-W%v')；SQL Server 用 DATEPART(ISO_WEEK, ...)。",
+          "注意 %W 与 %U 的区别：%W 以周一为首日，%U 以周日为首日，跨年周的归属会不同。",
+      ],
+      keywords=["strftime", "按周汇总", "日期格式化", "GROUP BY", "方言差异"],
+      note="做周报时一定要确认“周一还是周日算一周开始”，否则跨年那周会对不上财务口径。"),
+
+    q(id="G18", cat="WMS实战", level="困难", title="入库量 7 日移动平均",
+      desc="先按天统计入库行数，再算最近 7 天（含当天）的移动平均 ma7（保留 2 位小数），按日期降序取 7 行。",
+      hint="ROWS BETWEEN 6 PRECEDING AND CURRENT ROW 正好是 7 行。",
+      sql="WITH d AS (SELECT date(creation_date) AS day, COUNT(*) AS cnt FROM winv_inbound_order_lines GROUP BY day) SELECT day, cnt, ROUND(AVG(cnt) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW), 2) AS ma7 FROM d ORDER BY day DESC LIMIT 7",
+      strict=True, tables=["winv_inbound_order_lines"],
+      explain=[
+          "先用 CTE 把明细聚成「一天一行」，再做移动计算——窗口函数只能作用在已聚合的结果上。",
+          "AVG(...) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)：取当前行往前数 6 行到当前行，共 7 行求平均。",
+          "为什么要用 ROWS 而不是 RANGE：按天数偏移要用 RANGE INTERVAL，SQLite 不支持；按「行」偏移用 ROWS 最稳。",
+          "开头的几天不足 7 行，帧会自动截断，只对已有的行求平均，不会报错也不会补 0。",
+          "移动平均的作用是抹掉单日波动（比如周末不收货），看清趋势。",
+      ],
+      keywords=["移动平均", "ROWS BETWEEN", "窗口帧", "CTE", "趋势分析"],
+      note="窗口帧会自动截断是双刃剑：前几天的均值样本不足，看趋势时要注意开头部分不可比。"),
+
+    q(id="G19", cat="WMS实战", level="困难", title="入库单量的日环比增长率",
+      desc="先按天统计入库行数 cnt，再算相对前一天的增长率 pct（百分比，保留 1 位小数），按日期降序取 7 行。",
+      hint="(今天 - 昨天) * 100.0 / 昨天。",
+      sql="WITH d AS (SELECT date(creation_date) AS day, COUNT(*) AS cnt FROM winv_inbound_order_lines GROUP BY day) SELECT day, cnt, ROUND((cnt - LAG(cnt) OVER (ORDER BY day)) * 100.0 / LAG(cnt) OVER (ORDER BY day), 1) AS pct FROM d ORDER BY day DESC LIMIT 7",
+      strict=True, tables=["winv_inbound_order_lines"],
+      explain=[
+          "LAG(cnt) OVER (ORDER BY day) 取「前一天」的 cnt，是环比计算的核心。",
+          "增长率公式：(本期 - 上期) / 上期 × 100，乘 100.0 保证浮点运算。",
+          "最早那天没有前一天，LAG 返回 NULL，整条算式结果也是 NULL——这是正确行为，不该显示成 0。",
+          "如果前一天 cnt 恰好是 0，会触发除零；SQLite 返回 NULL，但 SQL Server/PostgreSQL 会报错，生产环境要用 NULLIF 保护。",
+          "同一个 LAG 表达式写了两遍，可读性一般；实际项目里常用子查询先算出 prev，再在外层相减。",
+      ],
+      keywords=["LAG()", "环比增长", "NULL 传播", "除零风险", "窗口函数"],
+      note="环比为 NULL 表示“没有上期可比”，环比为 0 表示“与上期持平”，两者含义完全不同，不要混。"),
+
+    q(id="G20", cat="WMS实战", level="困难", title="SKU 计划量的帕累托累计占比",
+      desc="按计划量从高到低列出各 SKU 的总量 qty（保留 1 位小数）和累计占比 cum_pct（保留 1 位小数），按 qty 降序。",
+      hint="SUM(qty) OVER (ORDER BY qty DESC) 是累计，SUM(qty) OVER () 是总量。",
+      sql="WITH s AS (SELECT sku, SUM(plan_qty) AS qty FROM winv_inbound_order_lines GROUP BY sku) SELECT sku, ROUND(qty,1) AS qty, ROUND(SUM(qty) OVER (ORDER BY qty DESC) * 100.0 / SUM(qty) OVER (), 1) AS cum_pct FROM s ORDER BY qty DESC",
+      strict=True, tables=["winv_inbound_order_lines"],
+      explain=[
+          "CTE 先把明细聚成「一个 SKU 一行」的总量。",
+          "SUM(qty) OVER (ORDER BY qty DESC) 是**累计和**：默认帧从第一行累到当前行，所以得到「从最大到当前」的累计量。",
+          "SUM(qty) OVER () 括号里什么都没有，表示整个结果集，得到总量。",
+          "两者相除再乘 100，就是帕累托分析的累计占比，用来判断「哪几个 SKU 贡献了 80% 的量」。",
+          "排序必须和窗口里的 ORDER BY 一致（都是 qty DESC），否则累计顺序与展示顺序不符，占比就没有意义。",
+      ],
+      keywords=["帕累托分析", "SUM() OVER", "累计求和", "窗口函数", "CTE"],
+      note="帕累托（二八法则）分析的固定套路：降序 → 累计和 / 总和 → 找到累计首次超过 80% 的位置。"),
+
+    q(id="G21", cat="WMS实战", level="困难", title="同一天同一 SKU 的多张入库单",
+      desc="找出同一天对同一 SKU 有 3 张及以上入库单的组合，输出日期 day、sku 和单数 bills，按 bills 降序、day 升序。",
+      hint="按「日期 + SKU」分组，再 HAVING 筛单数。",
+      sql="SELECT date(creation_date) AS day, sku, COUNT(*) AS bills FROM winv_inbound_order_lines GROUP BY day, sku HAVING COUNT(*) >= 3 ORDER BY bills DESC, day",
+      strict=True, tables=["winv_inbound_order_lines"],
+      explain=[
+          "date(creation_date) 把 'YYYY-MM-DD HH:MM:SS' 截成纯日期，这样同一天不同时刻的单据会被归到一组。",
+          "GROUP BY day, sku 是**多列分组**：每对「日期 + SKU」组合成一组。",
+          "注意可以直接 GROUP BY 别名 day（SQLite/MySQL 支持），标准 SQL 要求写完整表达式。",
+          "HAVING COUNT(*) >= 3 筛的是分组后的结果，不能写在 WHERE 里。",
+          "业务含义：一天内同一物料被拆成多单收货，通常意味着重复建单或分批到货，是数据质量排查的常见线索。",
+      ],
+      keywords=["多列分组", "GROUP BY 别名", "HAVING", "date()", "数据质量"],
+      note="GROUP BY 用别名在 SQLite/MySQL 可以，SQL Server 不允许——想跨库通用就写完整表达式。"),
+
+    q(id="G22", cat="WMS实战", level="进阶", title="各货主的入库计划量份额",
+      desc="按货主统计入库行数 cnt、计划量合计 qty（保留 1 位小数）和占总量的百分比 pct（保留 1 位小数），按 qty 降序。",
+      hint="分母用标量子查询取全表总量。",
+      sql="SELECT owner_id, COUNT(*) AS cnt, ROUND(SUM(plan_qty),1) AS qty, ROUND(SUM(plan_qty)*100.0/(SELECT SUM(plan_qty) FROM winv_inbound_order_lines), 1) AS pct FROM winv_inbound_order_lines GROUP BY owner_id ORDER BY qty DESC",
+      strict=True, tables=["winv_inbound_order_lines"],
+      explain=[
+          "GROUP BY owner_id 按货主分组，COUNT(*) 与 SUM(plan_qty) 各算本货主的行数和量。",
+          "占比分母是一个标量子查询：SELECT SUM(plan_qty) 不带 GROUP BY，返回全表总量。",
+          "分母的子查询与外表同表，但它是独立求值的，不受外层分组影响——这是能写在一起的原理。",
+          "各货主 pct 之和应为 100（保留小数可能有 ±0.1 的舍入误差）。",
+          "也可以在分母用 SUM(SUM(plan_qty)) OVER () 的窗口写法，省掉一次表扫描。",
+      ],
+      keywords=["占比", "标量子查询", "GROUP BY", "SUM", "多货主口径"],
+      note="验证占比算对没：把所有 pct 加起来，应该接近 100（舍入误差不超过行数×0.05）。"),
+
+    q(id="G23", cat="WMS实战", level="困难", title="各 SKU 的首末入库日与跨度",
+      desc="按 SKU 汇总：首次入库日 first_day、最近入库日 last_day、入库单数 bills 和首末相隔天数 span_days，按 bills 降序。",
+      hint="MIN/MAX 取日期文本即可；求相隔天数要转成 julianday 再相减。",
+      sql="SELECT sku, MIN(date(creation_date)) AS first_day, MAX(date(creation_date)) AS last_day, COUNT(*) AS bills, CAST(julianday(MAX(creation_date)) - julianday(MIN(creation_date)) AS INT) AS span_days FROM winv_inbound_order_lines GROUP BY sku ORDER BY bills DESC",
+      strict=True, tables=["winv_inbound_order_lines"],
+      explain=[
+          "creation_date 是标准格式文本，MIN/MAX 按字符串比较也能得到正确的首末值（因为年-月-日是定宽且高位在前）。",
+          "求天数差不能直接相减：'2026-11-25' - '2026-10-17' 在 SQLite 里会被当成数字 0。",
+          "julianday() 把日期转成儒略日（浮点天数），相减即得天数差，再 CAST 成整数。",
+          "MySQL 对照：DATEDIFF(MAX(creation_date), MIN(creation_date))；SQL Server 用 DATEDIFF(day, ...)。",
+          "业务含义：跨度大但单数少，说明是低频偶发需求；跨度小但单数多，说明是高频刚需物料。",
+      ],
+      keywords=["MIN", "MAX", "julianday", "日期差", "CAST", "方言差异"],
+      note="日期相减是跨库差异最大的地方之一：SQLite 用 julianday，MySQL 用 DATEDIFF，SQL Server 用 DATEDIFF(day,...)。"),
 
 ]
 
