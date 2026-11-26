@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Windows 桌面目标框架：WPF 与托盘图标都来自 Microsoft.WindowsDesktop.App，零 NuGet -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- WinExe：双击不出黑窗口。要命令行的场景传 console 开关（运行时 AllocConsole 再挂一个） -->
+    <OutputType>WinExe</OutputType>
+    <!-- 主窗口与所有可见界面均为 WPF（XAML + 自定义控件模板） -->
+    <UseWPF>true</UseWPF>
+    <!-- 仅系统托盘图标复用 WinForms 的 NotifyIcon 类型：无窗口、无控件、不可见。
+         WPF 没有原生托盘控件，用它是为了保持零 NuGet；托盘回退模式也用它。 -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>SqlController</RootNamespace>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- 桌面小服务：工作站 GC 即可。服务器 GC 会按核数各留一套堆，本地单用户根本用不上，白占内存 -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <!-- exe 文件图标：开源图标 Lucide plug-zap（ISC），由 tools/make_icon.py 生成 -->
+    <ApplicationIcon>assets\app.ico</ApplicationIcon>
+    <!-- 允许在 Linux / macOS 上交叉发布 win-x64（publish.sh 用得到）；Windows 上无副作用 -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <!-- WPF 与 WinForms 同时启用时，隐式 using 集合不含 System.IO / System.Net.Http，显式补上 -->
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+    <!-- 白色线稿：运行时叠上状态色生成托盘三态图标，用 EmbeddedResource 让托盘/命令行回退也能读 -->
+    <EmbeddedResource Include="assets\glyph.png" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQL 闯关 · SQLZoo 式分步引导</title>
+<!-- 单文件本地应用：一次一题，写完即判，通过自动进入下一题。引擎/题库由 build.py 内嵌。 -->
+<style>
+:root{
+  --bg:#F7F9FA; --paper:#FFFFFF; --ink:#22272B; --ink2:#66727B; --ink3:#94A0A8;
+  --line:#E2E7EB; --line2:#EDF0F3; --code:#F5F7F9;
+  --accent:#3B5A6A; --accent-soft:#EAF0F3; --accent-line:#C9D6DE;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.72;-webkit-font-smoothing:antialiased}
+.layout{display:flex;align-items:flex-start;max-width:1400px;margin:0 auto;min-height:100vh}
+.sidebar{position:sticky;top:0;flex:0 0 246px;width:246px;height:100vh;overflow-y:auto;background:var(--paper);border-right:1px solid var(--line);padding:24px 16px 22px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:9px;margin-bottom:18px;padding:0 3px}
+.brand .sq{width:22px;height:22px;border-radius:5px;background:var(--accent);flex:0 0 auto}
+.brand .t{font-size:13px;font-weight:600;letter-spacing:-.01em}
+.brand .s{font-size:11px;color:var(--ink3)}
+.side-progress{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:6px;padding:12px 13px;margin-bottom:18px}
+.side-progress .big{font-size:26px;font-weight:600;letter-spacing:-.03em;color:var(--accent);line-height:1.2;font-variant-numeric:tabular-nums}
+.side-progress .big small{font-size:13px;font-weight:400;color:var(--ink2)}
+.side-progress .lab{font-size:11px;color:var(--ink2);margin-bottom:6px}
+.pbar{height:5px;background:#D8E1E6;border-radius:3px;overflow:hidden;margin-top:9px}
+.pbar i{display:block;height:100%;background:var(--accent);width:0;transition:width .35s}
+.nav-label{font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--ink3);margin:0 0 9px;padding:0 3px}
+.chapter{margin-bottom:13px}
+.chapter .ch{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;color:var(--ink2);padding:0 3px;margin-bottom:5px}
+.chapter .ch b{font-weight:600;color:var(--ink)}
+.chapter .ch span{font-size:10.5px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.qgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.qnum{font-family:var(--mono);font-size:10.5px;text-align:center;padding:5px 0;border:1px solid var(--line);border-radius:4px;color:var(--ink3);cursor:pointer;background:var(--paper);transition:all .15s;user-select:none}
+.qnum:hover{border-color:var(--accent);color:var(--accent)}
+.qnum.done{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent);font-weight:600}
+.qnum.cur{border-color:var(--accent);border-width:2px;color:var(--accent);font-weight:600}
+.side-rule{height:1px;background:var(--line);margin:18px 0 14px}
+.side-status{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:6px;padding:9px 11px;font-size:11.5px;color:var(--accent);line-height:1.6;margin-bottom:14px}
+.side-status.bad{background:var(--paper);border-color:var(--line);color:var(--ink2)}
+.side-foot{margin-top:auto;font-size:11px;color:var(--ink3);line-height:1.7;border-top:1px solid var(--line);padding-top:13px}
+.side-foot button{margin-top:8px}
+
+.content{flex:1;min-width:0;max-width:920px;padding:28px 38px 78px}
+.masthead{padding-bottom:17px;margin-bottom:18px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.16em;color:var(--accent);margin-bottom:9px}
+h1{font-size:27px;font-weight:600;letter-spacing:-.025em;line-height:1.3;margin:0 0 6px}
+.masthead .meta{color:var(--ink2);font-size:12.5px;margin:0}
+.notice{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:6px;padding:11px 15px;margin-bottom:16px;font-size:12px;color:var(--ink2);line-height:1.75}
+.notice b{color:var(--accent);font-weight:600}
+.topbar{position:sticky;top:10px;z-index:6;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:10px 14px;margin-bottom:18px}
+.topbar .step{font-size:12px;color:var(--ink2)}
+.topbar .step b{font-size:15px;color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;margin:0 2px}
+.topbar .pbar{flex:1;min-width:120px;margin:0}
+.topbar .pct{font-size:11.5px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.topbar button{padding:4px 10px}
+
+.qcard{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:20px 22px;margin-bottom:16px}
+.qhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.qhead .idx{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent);letter-spacing:.04em;background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:4px;padding:2px 8px}
+.qhead h2{font-size:18px;font-weight:600;letter-spacing:-.015em;margin:0;flex:1;min-width:180px}
+.badge{font-size:10.5px;padding:2px 8px;border:1px solid var(--line);border-radius:5px;color:var(--ink2);background:var(--paper);white-space:nowrap}
+.badge.cat{border-color:var(--accent-line);color:var(--accent);background:var(--accent-soft)}
+.qdesc{font-size:13px;color:var(--ink2);line-height:1.85;margin:0 0 10px}
+.qmeta{font-size:11.5px;color:var(--ink3);margin-bottom:14px}
+code{font-family:var(--mono);font-size:11.5px;background:var(--code);padding:1px 5px;border-radius:3px;color:#4B555C}
+.editor{width:100%;min-height:120px;resize:vertical;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--ink);background:var(--code);border:1px solid var(--line);border-radius:6px;padding:13px 15px;outline:none;tab-size:2}
+.editor:focus{border-color:var(--accent)}
+.editor::placeholder{color:var(--ink3)}
+.btnrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:11px}
+.btnrow .note{font-size:11px;color:var(--ink3);margin-left:auto}
+button{font:inherit;font-size:11.5px;letter-spacing:.01em;padding:6px 12px;border:1px solid var(--line);background:transparent;border-radius:5px;cursor:pointer;color:var(--ink2);transition:all .15s}
+button:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{border-color:var(--accent);color:var(--accent)}
+button.primary:hover:not(:disabled){background:var(--accent);color:#fff}
+button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.verdict{display:none;border:1px solid var(--line);border-radius:6px;padding:12px 15px;margin:13px 0 0;font-size:12.5px;background:var(--paper)}
+.verdict.show{display:block}
+.verdict.ok{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent)}
+.verdict b{font-weight:600}
+.verdict .detail{color:var(--ink2);margin-top:3px}
+.verdict.ok .detail{color:var(--accent)}
+.nextline{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--line2)}
+.nextline .note{font-size:11px;color:var(--ink3)}
+.foldrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.resbox{border:1px solid var(--line);border-radius:6px;background:var(--paper);overflow:hidden}
+.resbox .rh{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--ink2);padding:8px 11px;border-bottom:1px solid var(--line2);background:#F7F9FA}
+.tblscroll{overflow:auto;max-height:210px}
+table{border-collapse:collapse;font-size:11.5px;width:100%}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line2);white-space:nowrap;vertical-align:top}
+th{position:sticky;top:0;font-size:10.5px;font-weight:600;letter-spacing:.04em;color:var(--ink2);background:#F7F9FA;z-index:1}
+tr:last-child td{border-bottom:none}
+td.null{color:var(--ink3);font-style:italic}
+.hintbox{display:none;background:var(--paper);border:1px solid var(--accent-line);border-radius:6px;padding:11px 14px;margin-top:11px;font-size:12.5px;color:var(--ink2)}
+.hintbox.show{display:block}
+pre{background:var(--code);border:1px solid var(--line);border-radius:6px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:11.5px;line-height:1.75;color:#4B555C;margin:8px 0 0}
+
+.sec{scroll-margin-top:70px;margin:30px 0 12px;display:flex;align-items:center;gap:11px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.sec .num{font-size:11px;font-weight:600;color:var(--ink3);letter-spacing:.08em;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.sec h2{font-size:17px;font-weight:600;letter-spacing:-.015em;margin:0}
+.sec .tag{font-size:11px;padding:2px 9px;border:1px solid var(--line);border-radius:5px;margin-left:auto;color:var(--ink2);background:var(--paper)}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--paper)}
+.table-wrap table{min-width:620px}
+.table-wrap td b{font-weight:600;color:var(--ink)}
+.tdesc{color:var(--ink2);font-size:11.5px;margin-top:5px;line-height:1.6}
+
+/* 相关表字段 */
+.fields{border:1px solid var(--line);border-radius:6px;background:#FBFCFD;padding:11px 13px;margin-bottom:13px}
+.fields .fh{display:flex;align-items:baseline;gap:9px;margin-bottom:9px;flex-wrap:wrap}
+.fields .fh b{font-size:11.5px;font-weight:600;color:var(--accent);letter-spacing:.03em}
+.fields .fh span{font-size:10.5px;color:var(--ink3)}
+.ftbl+.ftbl{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.ftbl .ftn{font-size:11.5px;color:var(--ink);margin-bottom:7px;font-variant-numeric:tabular-nums}
+.ftbl .ftn code{font-size:11.5px;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:4px;padding:1px 6px}
+.ftbl .ftn em{font-style:normal;color:var(--ink3);font-size:10.5px;margin-left:6px}
+.fcols{display:flex;flex-wrap:wrap;gap:6px}
+.fc{display:inline-flex;align-items:baseline;gap:5px;border:1px solid var(--line);background:var(--paper);border-radius:4px;padding:3px 8px;font-size:11px;line-height:1.5}
+.fc code{font-size:11px;color:var(--accent);font-weight:500}
+.fc i{font-style:normal;color:var(--ink2);font-size:10.5px}
+.fc .ty{color:var(--ink3);font-size:9.5px;letter-spacing:.03em}
+
+/* 答案解析 */
+pre{white-space:pre-wrap;overflow-wrap:anywhere}
+.anshead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.steps{margin-top:12px;border-top:1px dashed var(--line);padding-top:11px}
+.steps .sth{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--accent);margin-bottom:7px}
+.steps ol{margin:0;padding-left:19px;color:var(--ink2);font-size:12px;line-height:1.8}
+.steps ol li{margin-bottom:3px}
+.steps ol li::marker{color:var(--accent);font-weight:600}
+.kws{margin-top:10px;font-size:11px;color:var(--ink3);line-height:2}
+.kws code{font-size:10.5px;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:4px;padding:1px 6px;margin-right:4px}
+.ansnote{margin-top:10px;font-size:11.5px;color:var(--ink2);background:#FBFCFD;border-left:2px solid var(--accent-line);padding:7px 11px;border-radius:0 4px 4px 0}
+
+/* 样例数据表：卡片 + 字段明细 */
+.tcard{border-bottom:1px solid var(--line);padding:14px 16px}
+.tcard:last-child{border-bottom:none}
+.tcardh{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.tcardh b{font-size:12.5px;color:var(--accent);font-weight:600}
+.tcardh em{font-style:normal;font-size:11px;color:var(--ink3)}
+.tcardh button{margin-left:auto}
+table.subtbl{min-width:0;width:100%;margin-top:9px;border:1px solid var(--line2);border-radius:4px}
+table.subtbl th,table.subtbl td{padding:5px 9px;font-size:11px}
+table.subtbl th{font-size:10.5px;color:var(--ink3);font-weight:600;letter-spacing:.04em}
+table.subtbl td code{font-size:10.5px}
+.callout{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:13px 16px;font-size:12.5px;color:var(--ink2);line-height:1.8}
+.callout b{color:var(--accent)}
+.foot{margin-top:36px;padding-top:15px;border-top:1px solid var(--line);color:var(--ink3);font-size:11.5px;line-height:1.8}
+.to-top{position:fixed;right:26px;bottom:26px;z-index:20;display:flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--accent);font-size:11.5px;cursor:pointer;opacity:0;visibility:hidden;transform:translateY(6px);transition:opacity .18s,transform .18s,visibility .18s}
+.to-top.show{opacity:1;visibility:visible;transform:none}
+.to-top svg{width:12px;height:12px;display:block}
+@media (max-width:900px){
+  .layout{flex-direction:column}
+  .sidebar{position:static;width:100%;height:auto;flex:none;border-right:none;border-bottom:1px solid var(--line);padding:15px 17px}
+  .brand{margin-bottom:12px}
+  .side-progress{margin-bottom:12px}
+  .qgrid{grid-template-columns:repeat(9,1fr)}
+  .side-rule,.side-status,.side-foot{display:none}
+  .content{padding:22px 17px 60px;max-width:none}
+  .foldrow{grid-template-columns:1fr}
+  h1{font-size:24px}
+}
+@media print{
+  body{background:#fff}.sidebar,.topbar,.to-top,.btnrow,.nextline,button{display:none!important}
+  .content{padding:0;max-width:none}
+  .qcard{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<script>/*__SQLJS_LIB__*/</script>
+<script>const WASM_B64="/*__WASM_B64__*/";</script>
+<script>/*__QUIZ_DATA__*/</script>
+<div class="layout">
+
+<aside class="sidebar">
+  <div class="brand"><div class="sq"></div><div><div class="t">SQL 闯关</div><div class="s">分步引导 · 写完即判</div></div></div>
+  <div class="side-progress">
+    <div class="lab">已通关</div>
+    <div class="big"><span id="sideBig">0</span><small> / <span id="sideTotal">__QCOUNT__</span> 题</small></div>
+    <div class="pbar"><i id="sideBar"></i></div>
+  </div>
+  <div class="nav-label">关卡地图（点击跳转）</div>
+  <div id="chapterNav"></div>
+  <div class="side-rule"></div>
+  <div class="side-status" id="engineStatus">引擎加载中…</div>
+  <div class="side-foot">
+    进度自动保存在本机浏览器<br>
+    Ctrl / ⌘ + Enter 运行 SQL<br>
+    <button type="button" id="resetBtn">重置闯关进度</button>
+  </div>
+</aside>
+
+<main class="content">
+  <header class="masthead">
+    <div class="eyebrow">SQLZoo 式分步引导 · __QCOUNT__ 关 · SQLite 引擎</div>
+    <h1>SQL 闯关</h1>
+    <p class="meta">一次一题 &nbsp;·&nbsp; 写完即判 &nbsp;·&nbsp; 通过自动进入下一题</p>
+  </header>
+
+  <div class="notice"><b>玩法：</b>在下方写 SQL，点「运行并判分」或按 <code>Ctrl/⌘ + Enter</code>。结果集与标准答案比对，通过后自动进入下一关；卡片会保留你的 SQL 和对照结果，方便复盘。卡住可用「提示」或「查看答案」。</div>
+
+  <div class="topbar">
+    <span class="step">关卡 <b id="curStep">1</b> / <b id="allStep">__QCOUNT__</b></span>
+    <div class="pbar"><i id="topBar"></i></div>
+    <span class="pct" id="topPct">0%</span>
+    <button type="button" id="prevBtn">← 上一关</button>
+    <button type="button" id="nextBtn">下一关 →</button>
+  </div>
+
+  <div class="qcard">
+    <div class="qhead">
+      <span class="idx" id="qIdx">Q-01</span>
+      <h2 id="qTitle">题目加载中…</h2>
+      <span class="badge cat" id="qCat">分类</span>
+      <span class="badge" id="qLevel">难度</span>
+      <span class="badge" id="qDone" style="display:none">✓ 已通关</span>
+    </div>
+    <p class="qdesc" id="qDesc"></p>
+    <div class="qmeta" id="qMeta"></div>
+    <div class="fields" id="fieldBox"></div>
+    <textarea class="editor" id="editor" spellcheck="false" placeholder="-- 在这里写 SQL，写完后运行判分"></textarea>
+    <div class="btnrow">
+      <button type="button" class="primary" id="runBtn">运行并判分</button>
+      <button type="button" id="hintBtn">提示</button>
+      <button type="button" id="ansBtn">查看答案</button>
+      <button type="button" id="clearBtn">清空</button>
+      <span class="note">对照数据可展开下方「样例数据表」</span>
+    </div>
+    <div class="hintbox" id="hintBox"></div>
+    <div class="verdict" id="verdict"></div>
+    <div class="foldrow" id="resultFold" style="display:none">
+      <div class="resbox"><div class="rh">你的结果</div><div class="tblscroll" id="userResult"></div></div>
+      <div class="resbox"><div class="rh">标准答案结果</div><div class="tblscroll" id="stdResult"></div></div>
+    </div>
+    <div class="nextline">
+      <span class="note" id="autoNote">通过后自动进入下一关</span>
+      <button type="button" id="nextInline">下一关 →</button>
+    </div>
+  </div>
+
+  <div class="sec" id="secTables"><span class="num">08</span><h2>样例数据表</h2><span class="tag">6 张 · 字段明细</span></div>
+  <div class="table-wrap">
+    <div id="tableList"></div>
+  </div>
+  <div id="tablePreview" style="margin-top:12px"></div>
+
+  <div class="sec" id="secRules"><span class="num">09</span><h2>规则说明</h2><span class="tag">使用须知</span></div>
+  <div class="callout">
+    <b>判分：</b>你的 SQL 和标准答案在同一份 SQLite 数据上执行，逐单元格比对（NULL 视为空串），不比较列名；默认忽略行顺序，题干标注「严格」的题按返回顺序比。<br>
+    <b>方言：</b>浏览器用 SQLite，WMS 题附 MySQL 对照写法（如 <code>date('now','-29 days')</code> ↔ <code>DATE_SUB(CURDATE(), INTERVAL 29 DAY)</code>）。<br>
+    <b>独立文件：</b>本页与「SQL练习场.html」互不影响，但共用同一题库；进度各自保存在浏览器本地。
+  </div>
+
+  <div class="foot">SQL 闯关 · 单文件 HTML · 引擎与题库由 build.py 内嵌生成，答案先经 Python sqlite3 验证。</div>
+</main>
+</div>
+
+<button class="to-top" id="toTop" type="button" aria-label="回到顶部" title="回到顶部">
+<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 10V2M6 2L2.5 5.5M6 2L9.5 5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>回到顶部</span>
+</button>
+
+<script>
+(function(){
+  "use strict";
+  var SQL=null,baseSnap=null,ready=false,autoTimer=null;
+  if(typeof QUIZ==='undefined'){
+    document.body.innerHTML='<div style="max-width:640px;margin:80px auto;padding:28px 32px;border:1px solid #E2E7EB;border-radius:8px;background:#fff;font-family:system-ui,-apple-system,\'Microsoft YaHei\',sans-serif;line-height:1.9;color:#22272B">'
+      +'<h2 style="margin:0 0 10px;font-size:18px;color:#3B5A6A">这是源模板，不是可直接使用的页面</h2>'
+      +'<p style="margin:0 0 12px;color:#66727B;font-size:13px">template 文件中的题库、引擎都是占位符，需要构建后才会生成完整页面。</p>'
+      +'<p style="margin:0;color:#66727B;font-size:13px">请打开同目录的 <b style="color:#3B5A6A">SQL练习场.html</b> 或 <b style="color:#3B5A6A">SQL闯关.html</b>（不带 .template）。</p>'
+      +'</div>';
+    document.body.style.margin='0';document.body.style.background='#F7F9FA';
+    return;
+  }
+  var QS=QUIZ.questions;
+  var KEY='sql-quiz-zone-progress-v1';
+  var progress={passed:{},drafts:{}};
+  try{var raw=localStorage.getItem(KEY);if(raw){var p=JSON.parse(raw);if(p&&p.passed){progress=p;if(!progress.drafts)progress.drafts={};}}}catch(e){}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(progress));}catch(e){}}
+  function $(id){return document.getElementById(id);}
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function fresh(){return new SQL.Database(baseSnap);}
+  var idx=0,showHint=false,showAns=false;
+
+  function boot(){
+    try{
+      var bin=Uint8Array.from(atob(WASM_B64),function(c){return c.charCodeAt(0);});
+      initSqlJs({wasmBinary:bin}).then(function(mod){
+        SQL=mod;
+        var db=new SQL.Database();db.run(QUIZ.schema);db.run(QUIZ.wmsInserts);
+        baseSnap=db.export();db.close();ready=true;
+        $('engineStatus').className='side-status';
+        $('engineStatus').textContent='SQLite 引擎就绪 · 可判分';
+        buildNav();buildTables();render();
+      }).catch(function(e){
+        $('engineStatus').className='side-status bad';
+        $('engineStatus').textContent='引擎加载失败：'+e.message;
+      });
+    }catch(e){
+      $('engineStatus').className='side-status bad';
+      $('engineStatus').textContent='引擎加载失败：'+e.message;
+    }
+  }
+
+  function buildNav(){
+    var h='';
+    QUIZ.cats.forEach(function(cat,ci){
+      var arr=QS.filter(function(q){return q.cat===cat;});
+      if(!arr.length)return;
+      var done=arr.filter(function(q){return progress.passed[q.id];}).length;
+      h+='<div class="chapter"><div class="ch"><b>'+String(ci+1).padStart(2,'0')+' '+esc(cat)+'</b><span>'+done+'/'+arr.length+'</span></div><div class="qgrid">';
+      arr.forEach(function(q){
+        var gi=QS.indexOf(q);
+        h+='<div class="qnum'+(progress.passed[q.id]?' done':'')+(gi===idx?' cur':'')+'" data-i="'+gi+'" title="'+esc(q.title)+'">'+esc(q.id)+'</div>';
+      });
+      h+='</div></div>';
+    });
+    $('chapterNav').innerHTML=h;
+    $('chapterNav').querySelectorAll('.qnum').forEach(function(el){
+      el.addEventListener('click',function(){go(parseInt(el.getAttribute('data-i'),10));});
+    });
+  }
+
+  function stats(){
+    var n=QS.filter(function(q){return progress.passed[q.id];}).length;
+    var pct=QS.length?Math.round(n/QS.length*100):0;
+    $('sideBig').textContent=n;$('sideTotal').textContent=QS.length;
+    $('curStep').textContent=idx+1;$('allStep').textContent=QS.length;
+    $('topPct').textContent=pct+'%';
+    $('sideBar').style.width=pct+'%';$('topBar').style.width=pct+'%';
+  }
+
+  function render(){
+    if(autoTimer){clearTimeout(autoTimer);autoTimer=null;}
+    var q=QS[idx];
+    $('qIdx').textContent='Q-'+q.id;
+    $('qTitle').textContent=q.title;
+    $('qCat').textContent=q.cat;
+    $('qLevel').textContent=q.level;
+    $('qDone').style.display=progress.passed[q.id]?'inline-block':'none';
+    $('qDesc').textContent=q.desc;
+    $('qMeta').innerHTML='题目 ID：<code>'+esc(q.id)+'</code> &nbsp;·&nbsp; 比对：<code>'+(q.strict?'按行顺序严格比较':'忽略行顺序（集合比较）')+'</code>'+(q.note?'<br>说明：'+esc(q.note):'');
+    $('fieldBox').innerHTML=renderFields(q.tables);
+    $('editor').value=progress.drafts[q.id]||'';
+    showHint=false;showAns=false;
+    $('hintBox').className='hintbox';$('hintBox').innerHTML='';
+    $('hintBtn').textContent='提示';$('ansBtn').textContent='查看答案';
+    $('verdict').className='verdict';$('verdict').innerHTML='';
+    $('resultFold').style.display='none';
+    $('autoNote').textContent=progress.passed[q.id]?'本题已通过 · 可继续':'通过后自动进入下一关';
+    stats();buildNav();
+    $('prevBtn').disabled=idx===0;
+    $('nextBtn').disabled=idx===QS.length-1;
+    $('nextInline').disabled=idx===QS.length-1;
+  }
+
+  function go(i){
+    if(i<0||i>=QS.length)return;
+    var prev=QS[idx];
+    if(prev)progress.drafts[prev.id]=$('editor').value;
+    save();idx=i;render();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  /* 相关表字段：写 SQL 前先看这里 */
+  function renderFields(tables){
+    if(!tables||!tables.length||!QUIZ.tableDict)return '';
+    var h='<div class="fh"><b>相关表字段</b><span>悬停字段可看示例值</span></div>';
+    tables.forEach(function(tn){
+      var t=QUIZ.tableDict[tn]; if(!t)return;
+      h+='<div class="ftbl"><div class="ftn"><code>'+esc(tn)+'</code><em>'+esc(t.label)+'</em></div><div class="fcols">';
+      t.cols.forEach(function(c){
+        h+='<span class="fc" title="'+esc(c.desc)+'　示例：'+esc(c.sample)+'"><code>'+esc(c.name)+'</code>'+
+           '<i>'+esc(c.desc)+'</i><span class="ty">'+esc(c.type)+'</span></span>';
+      });
+      h+='</div></div>';
+    });
+    return h;
+  }
+
+  /* 标准答案 + 解题步骤 + 关键语法点 */
+  function renderAnswer(q){
+    var h='<div class="anshead"><b style="color:var(--accent)">标准答案（SQLite）</b>'+
+          '<button type="button" id="copyAns">复制 SQL</button></div><pre>'+esc(q.sql)+'</pre>';
+    if(q.explain&&q.explain.length){
+      h+='<div class="steps"><div class="sth">解题思路</div><ol>';
+      q.explain.forEach(function(x){ h+='<li>'+esc(x)+'</li>'; });
+      h+='</ol></div>';
+    }
+    if(q.keywords&&q.keywords.length){
+      h+='<div class="kws">关键点：'+q.keywords.map(function(k){return '<code>'+esc(k)+'</code>';}).join('')+'</div>';
+    }
+    if(q.note)h+='<div class="ansnote">'+esc(q.note)+'</div>';
+    return h;
+  }
+
+  function renderTable(columns,values,limit){
+    if(!values||!values.length)return '<div style="padding:10px 12px;font-size:11.5px;color:var(--ink3)">无数据行</div>';
+    var n=Math.min(values.length,limit||30);
+    var h='<table><tr>'+columns.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr>';
+    for(var i=0;i<n;i++){
+      h+='<tr>'+values[i].map(function(v){
+        if(v===null)return '<td class="null">NULL</td>';
+        return '<td>'+esc(v)+'</td>';
+      }).join('')+'</tr>';
+    }
+    h+='</table>';
+    if(values.length>n)h+='<div style="padding:7px 10px;font-size:10.5px;color:var(--ink3)">仅显示前 '+n+' 行（共 '+values.length+' 行）</div>';
+    return h;
+  }
+  function norm(res){return (res.values||[]).map(function(row){return row.map(function(v){return v===null?'':String(v);});});}
+  function compare(user,std,strict){
+    var u=norm(user),e=norm(std);
+    if(u.length!==e.length)return {ok:false,msg:'行数不同：你的结果 '+u.length+' 行，标准答案 '+e.length+' 行。'};
+    var us=u.map(function(r){return JSON.stringify(r);}),es=e.map(function(r){return JSON.stringify(r);});
+    if(!strict){us.sort();es.sort();}
+    for(var i=0;i<us.length;i++){
+      if(us[i]!==es[i])return {ok:false,msg:'第 '+(i+1)+' 行数据不一致（'+(strict?'按位置':'排序后')+'比对）。'};
+    }
+    return {ok:true,msg:'结果集完全一致（'+u.length+' 行）。'};
+  }
+
+  function run(){
+    var q=QS[idx];
+    if(!ready){
+      $('verdict').className='verdict show';
+      $('verdict').innerHTML='<b>引擎尚未就绪</b><div class="detail">请稍候。</div>';return;
+    }
+    var sql=$('editor').value.trim();
+    if(!sql){
+      $('verdict').className='verdict show';
+      $('verdict').innerHTML='<b>请先写 SQL</b><div class="detail">编辑器为空。</div>';return;
+    }
+    progress.drafts[q.id]=$('editor').value;save();
+    if(autoTimer){clearTimeout(autoTimer);autoTimer=null;}
+    var du=fresh(),ds=fresh(),ur,sr;
+    try{ur=du.exec(sql);}catch(e){
+      du.close();ds.close();
+      $('verdict').className='verdict show';
+      $('verdict').innerHTML='<b>SQL 执行出错</b><div class="detail">'+esc(e.message)+'</div>';return;
+    }
+    try{sr=ds.exec(q.sql);}catch(e){
+      du.close();ds.close();
+      $('verdict').className='verdict show';
+      $('verdict').innerHTML='<b>标准答案执行出错（题库问题）</b><div class="detail">'+esc(e.message)+'</div>';return;
+    }
+    du.close();ds.close();
+    var u=ur.length?ur[ur.length-1]:{columns:[],values:[]};
+    var s=sr.length?sr[sr.length-1]:{columns:[],values:[]};
+    var cmp=compare(u,s,!!q.strict);
+    $('userResult').innerHTML=renderTable(u.columns,u.values,30);
+    $('stdResult').innerHTML=renderTable(s.columns,s.values,30);
+    $('resultFold').style.display='grid';
+    if(cmp.ok){
+      var isNew=!progress.passed[q.id];
+      progress.passed[q.id]=true;save();stats();buildNav();
+      $('qDone').style.display='inline-block';
+      var last=idx===QS.length-1;
+      $('verdict').className='verdict show ok';
+      $('verdict').innerHTML='<b>✓ 通关！</b><div class="detail">'+esc(cmp.msg)+(isNew?' 进度已保存。':' 本题之前已通过。')+(last?' 全部 '+QS.length+' 关已完成！':' 1.6 秒后自动进入下一关…')+'</div>';
+      if(!last){
+        autoTimer=setTimeout(function(){
+          autoTimer=null;
+          if(idx<QS.length-1)go(idx+1);
+        },1600);
+      }
+    }else{
+      $('verdict').className='verdict show';
+      $('verdict').innerHTML='<b>✗ 未通过</b><div class="detail">'+esc(cmp.msg)+'</div>';
+    }
+  }
+
+  function buildTables(){
+    var dict=QUIZ.tableDict||{};
+    $('tableList').innerHTML=Object.keys(dict).map(function(name){
+      var t=dict[name];
+      var rows=t.cols.map(function(c){
+        return '<tr><td><code>'+esc(c.name)+'</code></td><td>'+esc(c.type)+'</td><td>'+esc(c.desc)+'</td><td><code>'+esc(c.sample)+'</code></td></tr>';
+      }).join('');
+      return '<div class="tcard"><div class="tcardh"><b>'+esc(name)+'</b><em>'+esc(t.label)+'</em>'+
+        '<button type="button" data-tbl="'+esc(name)+'">查看样例数据</button></div>'+
+        '<div class="tdesc">'+esc(t.desc)+'</div>'+
+        '<table class="subtbl"><tr><th style="width:22%">字段</th><th style="width:13%">类型</th><th style="width:42%">含义</th><th>示例值</th></tr>'+rows+'</table></div>';
+    }).join('');
+    $('tableList').querySelectorAll('button[data-tbl]').forEach(function(b){
+      b.addEventListener('click',function(){preview(b.getAttribute('data-tbl'));});
+    });
+  }
+  function preview(name){
+    if(!ready)return;
+    var db=fresh(),res;
+    try{res=db.exec('SELECT * FROM "'+name+'" LIMIT 50');}catch(e){db.close();return;}
+    db.close();
+    var r=res.length?res[0]:{columns:[],values:[]};
+    $('tablePreview').innerHTML='<div class="resbox"><div class="rh">'+esc(name)+' · 前 50 行</div><div class="tblscroll">'+renderTable(r.columns,r.values,50)+'</div></div>';
+  }
+
+  function bind(){
+    $('runBtn').addEventListener('click',run);
+    $('editor').addEventListener('keydown',function(e){
+      if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();run();}
+    });
+    $('prevBtn').addEventListener('click',function(){go(idx-1);});
+    $('nextBtn').addEventListener('click',function(){go(idx+1);});
+    $('nextInline').addEventListener('click',function(){go(idx+1);});
+    $('hintBtn').addEventListener('click',function(){
+      var q=QS[idx];showHint=!showHint;
+      $('hintBox').className='hintbox'+(showHint?' show':'');
+      $('hintBox').innerHTML='<b style="color:var(--accent)">提示：</b>'+esc(q.hint||'本题无额外提示。');
+      $('hintBtn').textContent=showHint?'收起提示':'提示';
+    });
+    $('ansBtn').addEventListener('click',function(){
+      var q=QS[idx];showAns=!showAns;
+      $('ansBtn').textContent=showAns?'收起答案':'查看答案';
+      if(showAns){
+        $('hintBox').className='hintbox show';
+        $('hintBox').innerHTML=renderAnswer(q);
+        $('copyAns').addEventListener('click',function(){
+          var t=q.sql;
+          if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){flash($('copyAns'),'已复制');}).catch(function(){fallback(t);});}
+          else fallback(t);
+        });
+      }else{
+        $('hintBox').className='hintbox'+(showHint?' show':'');
+        $('hintBox').innerHTML=showHint?'<b style="color:var(--accent)">提示：</b>'+esc(q.hint||'本题无额外提示。'):'';
+      }
+    });
+    function fallback(t){
+      var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';
+      document.body.appendChild(ta);ta.select();
+      try{document.execCommand('copy');flash($('copyAns'),'已复制');}catch(e){flash($('copyAns'),'请手动选中');}
+      document.body.removeChild(ta);
+    }
+    function flash(btn,msg){if(!btn)return;var old=btn.textContent;btn.textContent=msg;setTimeout(function(){btn.textContent=old;},1200);}
+    $('clearBtn').addEventListener('click',function(){$('editor').value='';$('editor').focus();});
+    $('resetBtn').addEventListener('click',function(){
+      if(!window.confirm('确定重置所有闯关进度和草稿？此操作不可撤销。'))return;
+      progress={passed:{},drafts:{}};save();render();
+    });
+    var btn=$('toTop');
+    function sync(){if(window.scrollY>380)btn.classList.add('show');else btn.classList.remove('show');}
+    window.addEventListener('scroll',sync,{passive:true});sync();
+    btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+  }
+  bind();boot();
+})();
+</script>
+</body>
+</html>

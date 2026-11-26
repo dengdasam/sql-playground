@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQL 练习场 · 双模式题库（答题 / 速查）</title>
+<!-- 单文件本地应用：双击打开即可。内嵌 SQLite 引擎（sql.js）、样例数据与 __QCOUNT__ 道题目。 -->
+<style>
+:root{
+  --bg:#F7F9FA; --paper:#FFFFFF; --ink:#22272B; --ink2:#66727B; --ink3:#94A0A8;
+  --line:#E2E7EB; --line2:#EDF0F3; --code:#F5F7F9;
+  --accent:#3B5A6A; --accent-soft:#EAF0F3; --accent-line:#C9D6DE;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.72;-webkit-font-smoothing:antialiased}
+.layout{display:flex;align-items:flex-start;max-width:1400px;margin:0 auto;min-height:100vh}
+.sidebar{position:sticky;top:0;flex:0 0 238px;width:238px;height:100vh;overflow-y:auto;background:var(--paper);border-right:1px solid var(--line);padding:26px 18px 22px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:9px;margin-bottom:22px}
+.brand .sq{width:22px;height:22px;border-radius:5px;background:var(--accent);flex:0 0 auto}
+.brand .t{font-size:13px;font-weight:600;letter-spacing:-.01em}
+.brand .s{font-size:11px;color:var(--ink3)}
+.nav-label{font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--ink3);margin:0 0 9px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:baseline;gap:9px;text-decoration:none;color:var(--ink2);font-size:12.5px;padding:7px 9px;border-radius:5px;border-left:2px solid transparent;cursor:pointer}
+.nav a span{font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.nav a:hover{background:var(--accent-soft);color:var(--accent)}
+.nav a.on{background:var(--accent-soft);color:var(--accent);border-left-color:var(--accent);font-weight:600}
+.nav a.on span{color:var(--accent)}
+.side-rule{height:1px;background:var(--line);margin:20px 0 16px}
+.side-block{margin-bottom:18px}
+.side-block .k{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--ink3);margin-bottom:8px}
+.side-block .row{display:flex;justify-content:space-between;font-size:12px;color:var(--ink2);padding:3px 0}
+.side-block .row b{font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums}
+.side-status{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:6px;padding:9px 11px;font-size:11.5px;color:var(--accent);line-height:1.6;margin-bottom:16px}
+.side-status.bad{background:var(--paper);border-color:var(--line);color:var(--ink2)}
+.side-foot{margin-top:auto;font-size:11px;color:var(--ink3);line-height:1.7;border-top:1px solid var(--line);padding-top:14px}
+.side-foot button{margin-top:8px}
+
+.content{flex:1;min-width:0;max-width:1000px;padding:34px 38px 80px}
+.masthead{padding-bottom:20px;margin-bottom:22px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.16em;color:var(--accent);margin-bottom:10px}
+h1{font-size:29px;font-weight:600;letter-spacing:-.025em;line-height:1.3;margin:0 0 8px}
+.masthead .meta{color:var(--ink2);font-size:12.5px;margin:0}
+.notice{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:6px;padding:13px 16px;margin-bottom:22px;font-size:12.5px;color:var(--ink2);line-height:1.75}
+.notice b{color:var(--accent);font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:22px}
+.stat{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:13px 14px 14px}
+.stat .n{font-size:27px;font-weight:600;line-height:1.2;letter-spacing:-.035em;color:var(--ink);font-variant-numeric:tabular-nums}
+.stat .l{color:var(--ink2);font-size:11.5px;margin-top:4px}
+
+.modebar{display:flex;gap:6px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+.modebar .lab{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--ink3);margin-right:4px}
+button{font:inherit;font-size:11.5px;letter-spacing:.01em;padding:6px 12px;border:1px solid var(--line);background:transparent;border-radius:5px;cursor:pointer;color:var(--ink2);transition:all .15s}
+button:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{border-color:var(--accent);color:var(--accent)}
+button.primary:hover:not(:disabled){background:var(--accent);color:#fff}
+button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+button.on:hover{background:var(--accent);color:#fff}
+
+.panel{display:none}
+.panel.show{display:block}
+.toolbar{position:sticky;top:10px;z-index:6;display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:9px 12px;margin-bottom:20px}
+.toolbar .lead{font-size:12px;color:var(--ink2)}
+.toolbar .lead b{font-size:14px;font-weight:600;color:var(--accent);margin:0 3px;font-variant-numeric:tabular-nums}
+.toolbar .spacer{flex:1}
+select,input[type=text]{font:inherit;font-size:11.5px;padding:5px 8px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink2);outline:none}
+select:focus,textarea:focus{border-color:var(--accent)}
+
+.qcard{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:20px 22px;margin-bottom:16px}
+.qhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.qhead .idx{font-size:11px;font-weight:600;color:var(--ink3);letter-spacing:.06em;font-variant-numeric:tabular-nums}
+.qhead h2{font-size:18px;font-weight:600;letter-spacing:-.015em;margin:0;flex:1;min-width:200px}
+.badge{font-size:10.5px;padding:2px 8px;border:1px solid var(--line);border-radius:5px;color:var(--ink2);background:var(--paper);white-space:nowrap}
+.badge.cat{border-color:var(--accent-line);color:var(--accent);background:var(--accent-soft)}
+.badge.pass{border-color:var(--accent);color:var(--accent)}
+.qdesc{font-size:13px;color:var(--ink2);line-height:1.85;margin:0 0 12px}
+.qmeta{font-size:11.5px;color:var(--ink3);margin-bottom:16px}
+code{font-family:var(--mono);font-size:11.5px;background:var(--code);padding:1px 5px;border-radius:3px;color:#4B555C}
+.editor{width:100%;min-height:132px;resize:vertical;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--ink);background:var(--code);border:1px solid var(--line);border-radius:6px;padding:13px 15px;outline:none;tab-size:2}
+.editor::placeholder{color:var(--ink3)}
+.btnrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:11px}
+.btnrow .note{font-size:11px;color:var(--ink3);margin-left:auto}
+
+.verdict{display:none;border:1px solid var(--line);border-radius:6px;padding:12px 15px;margin:14px 0 0;font-size:12.5px;background:var(--paper)}
+.verdict.show{display:block}
+.verdict.ok{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent)}
+.verdict b{font-weight:600}
+.verdict .detail{color:var(--ink2);margin-top:3px}
+.verdict.ok .detail{color:var(--accent)}
+.foldrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.resbox{border:1px solid var(--line);border-radius:6px;background:var(--paper);overflow:hidden}
+.resbox .rh{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--ink2);padding:8px 11px;border-bottom:1px solid var(--line2);background:#F7F9FA}
+.tblscroll{overflow:auto;max-height:230px}
+table{border-collapse:collapse;font-size:11.5px;width:100%}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line2);white-space:nowrap;vertical-align:top}
+th{position:sticky;top:0;font-size:10.5px;font-weight:600;letter-spacing:.04em;color:var(--ink2);background:#F7F9FA;z-index:1}
+tr:last-child td{border-bottom:none}
+td.null{color:var(--ink3);font-style:italic}
+pre{background:var(--code);border:1px solid var(--line);border-radius:6px;padding:13px 15px;overflow-x:auto;font-family:var(--mono);font-size:11.5px;line-height:1.75;color:#4B555C;margin:8px 0 0}
+.hintbox{display:none;background:var(--paper);border:1px solid var(--accent-line);border-radius:6px;padding:11px 14px;margin-top:11px;font-size:12.5px;color:var(--ink2)}
+.hintbox.show{display:block}
+
+.sec{scroll-margin-top:70px;margin:32px 0 12px;display:flex;align-items:center;gap:11px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.sec .num{font-size:11px;font-weight:600;color:var(--ink3);letter-spacing:.08em;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.sec h2{font-size:17px;font-weight:600;letter-spacing:-.015em;margin:0}
+.sec .tag{font-size:11px;padding:2px 9px;border:1px solid var(--line);border-radius:5px;margin-left:auto;color:var(--ink2);background:var(--paper);white-space:nowrap}
+details{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:0 17px;margin-bottom:8px}
+summary{list-style:none;cursor:pointer;font-size:12.5px;padding:12px 0;color:var(--ink)}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+";display:inline-block;width:17px;font-family:var(--mono);color:var(--ink3);font-size:13px}
+details[open] summary::before{content:"−"}
+details[open] summary{border-bottom:1px solid var(--line2)}
+.dbody{padding:11px 0 15px}
+.dbody .qd{font-size:12px;color:var(--ink2);margin-bottom:8px}
+.dbody .row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.dbody .row .k{font-size:10.5px;font-weight:600;letter-spacing:.06em;color:var(--ink3)}
+
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--paper)}
+.table-wrap table{min-width:620px}
+.table-wrap td b{font-weight:600;color:var(--ink)}
+.tdesc{color:var(--ink2);font-size:11.5px;margin-top:5px;line-height:1.6}
+
+/* 题目卡的「相关表字段」——写 SQL 前先看这里 */
+.fields{border:1px solid var(--line);border-radius:6px;background:#FBFCFD;padding:11px 13px;margin-bottom:14px}
+.fields .fh{display:flex;align-items:baseline;gap:9px;margin-bottom:9px}
+.fields .fh b{font-size:11.5px;font-weight:600;color:var(--accent);letter-spacing:.03em}
+.fields .fh span{font-size:10.5px;color:var(--ink3)}
+.ftbl+.ftbl{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.ftbl .ftn{font-size:11.5px;color:var(--ink);margin-bottom:7px;font-variant-numeric:tabular-nums}
+.ftbl .ftn code{font-size:11.5px;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:4px;padding:1px 6px}
+.ftbl .ftn em{font-style:normal;color:var(--ink3);font-size:10.5px;margin-left:6px}
+.fcols{display:flex;flex-wrap:wrap;gap:6px}
+.fc{display:inline-flex;align-items:baseline;gap:5px;border:1px solid var(--line);background:var(--paper);border-radius:4px;padding:3px 8px;font-size:11px;line-height:1.5}
+.fc code{font-size:11px;color:var(--accent);font-weight:500}
+.fc i{font-style:normal;color:var(--ink2);font-size:10.5px}
+.fc .ty{color:var(--ink3);font-size:9.5px;letter-spacing:.03em}
+
+/* 答案解析：编号步骤 + 关键语法标签 */
+pre{white-space:pre-wrap;overflow-wrap:anywhere}
+.anshead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.steps{margin-top:12px;border-top:1px dashed var(--line);padding-top:11px}
+.steps .sth{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--accent);margin-bottom:7px}
+.steps ol{margin:0;padding-left:19px;color:var(--ink2);font-size:12px;line-height:1.8}
+.steps ol li{margin-bottom:3px}
+.steps ol li::marker{color:var(--accent);font-weight:600}
+.kws{margin-top:10px;font-size:11px;color:var(--ink3);line-height:2}
+.kws code{font-size:10.5px;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:4px;padding:1px 6px;margin-right:4px}
+.ansnote{margin-top:10px;font-size:11.5px;color:var(--ink2);background:#FBFCFD;border-left:2px solid var(--accent-line);padding:7px 11px;border-radius:0 4px 4px 0}
+
+/* 样例数据表：卡片 + 字段明细 */
+.tcard{border-bottom:1px solid var(--line);padding:14px 16px}
+.tcard:last-child{border-bottom:none}
+.tcardh{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.tcardh b{font-size:12.5px;color:var(--accent);font-weight:600}
+.tcardh em{font-style:normal;font-size:11px;color:var(--ink3)}
+.tcardh button{margin-left:auto}
+table.subtbl{min-width:0;width:100%;margin-top:9px;border:1px solid var(--line2);border-radius:4px}
+table.subtbl th,table.subtbl td{padding:5px 9px;font-size:11px}
+table.subtbl th{font-size:10.5px;color:var(--ink3);font-weight:600;letter-spacing:.04em}
+table.subtbl td code{font-size:10.5px}
+
+.callout{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:13px 16px;font-size:12.5px;color:var(--ink2);line-height:1.8}
+.callout b{color:var(--accent)}
+.foot{margin-top:38px;padding-top:15px;border-top:1px solid var(--line);color:var(--ink3);font-size:11.5px;line-height:1.8}
+.to-top{position:fixed;right:26px;bottom:26px;z-index:20;display:flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--accent);font-size:11.5px;cursor:pointer;opacity:0;visibility:hidden;transform:translateY(6px);transition:opacity .18s,transform .18s,visibility .18s}
+.to-top.show{opacity:1;visibility:visible;transform:none}
+.to-top svg{width:12px;height:12px;display:block}
+@media (max-width:900px){
+  .layout{flex-direction:column}
+  .sidebar{position:static;width:100%;height:auto;flex:none;border-right:none;border-bottom:1px solid var(--line);padding:15px 18px}
+  .brand{margin-bottom:12px}
+  .nav{flex-direction:row;flex-wrap:wrap;gap:4px}
+  .nav a{border-left:none;border-bottom:2px solid transparent;border-radius:4px}
+  .nav a.on{border-left:none;border-bottom-color:var(--accent)}
+  .side-rule,.side-block,.side-status,.side-foot{display:none}
+  .content{padding:24px 17px 60px;max-width:none}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .foldrow{grid-template-columns:1fr}
+  h1{font-size:25px}
+}
+@media print{
+  body{background:#fff}.sidebar,.toolbar,.modebar,.to-top,.btnrow,button{display:none!important}
+  .content{padding:0;max-width:none}
+  .panel{display:block!important}
+  .qcard,details,.table-wrap,.stat{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<script>/*__SQLJS_LIB__*/</script>
+<script>const WASM_B64="/*__WASM_B64__*/";</script>
+<script>/*__QUIZ_DATA__*/</script>
+<div class="layout">
+
+<aside class="sidebar">
+  <div class="brand"><div class="sq"></div><div><div class="t">SQL 练习场</div><div class="s">答题 · 速查 · 判分</div></div></div>
+  <div class="nav-label">知识点目录</div>
+  <nav class="nav" id="sideNav">
+    <a data-cat="ALL" class="on"><span>00</span>全部题目</a>
+    <a data-cat="基础查询"><span>01</span>基础查询</a>
+    <a data-cat="聚合分组"><span>02</span>聚合分组</a>
+    <a data-cat="多表连接"><span>03</span>多表连接</a>
+    <a data-cat="子查询"><span>04</span>子查询</a>
+    <a data-cat="窗口函数"><span>05</span>窗口函数</a>
+    <a data-cat="条件字符串"><span>06</span>条件字符串</a>
+    <a data-cat="WMS实战"><span>07</span>WMS 实战</a>
+  </nav>
+  <div class="side-rule"></div>
+  <div class="side-block">
+    <div class="k">概况</div>
+    <div class="row"><span>题库总数</span><b id="sideTotal">__QCOUNT__</b></div>
+    <div class="row"><span>已通过</span><b id="sidePassed">0</b></div>
+    <div class="row"><span>当前视图</span><b id="sideView">答题</b></div>
+  </div>
+  <div class="side-status" id="engineStatus">引擎加载中…</div>
+  <div class="side-foot">
+    数据源：内置 SQLite 样例库<br>
+    进度保存在本机浏览器 localStorage<br>
+    <button type="button" id="resetBtn">清空答题进度</button>
+  </div>
+</aside>
+
+<main class="content">
+  <header class="masthead">
+    <div class="eyebrow">本地单文件应用 · SQLite 引擎 · 结果集判分</div>
+    <h1>SQL 练习场</h1>
+    <p class="meta">__QCOUNT__ 道题 &nbsp;·&nbsp; 经典题型 + WMS 实战 &nbsp;·&nbsp; 2026-11-26</p>
+  </header>
+
+  <div class="notice"><b>判分口径：</b>你写的 SQL 会在浏览器里的 SQLite 引擎真实执行，再与标准答案的结果集逐行比对。默认忽略行顺序（按集合比），题干注明「按行顺序严格比较」的题目会计较顺序。不比较列名，只比较数据值与行数。</div>
+
+  <div class="stats">
+    <div class="stat"><div class="n" id="stTotal">__QCOUNT__</div><div class="l">题目总数</div></div>
+    <div class="stat"><div class="n" id="stPassed">0</div><div class="l">已通过</div></div>
+    <div class="stat"><div class="n" id="stRate">0%</div><div class="l">通过率</div></div>
+    <div class="stat"><div class="n">7</div><div class="l">知识点分类</div></div>
+    <div class="stat"><div class="n">6</div><div class="l">样例数据表</div></div>
+  </div>
+
+  <div class="modebar">
+    <span class="lab">模式</span>
+    <button type="button" id="modePractice" class="on">答题模式</button>
+    <button type="button" id="modeRef">速查模式</button>
+    <span class="lab" style="margin-left:14px">快捷键 Ctrl / ⌘ + Enter 运行</span>
+  </div>
+
+  <!-- ============ 答题模式 ============ -->
+  <section class="panel show" id="panelPractice">
+    <div class="toolbar">
+      <span class="lead">当前 <b id="qPos">1</b> / <b id="qCount">__QCOUNT__</b></span>
+      <select id="fCat" aria-label="知识点筛选"><option value="ALL">全部分类</option></select>
+      <select id="fLevel" aria-label="难度筛选"><option value="ALL">全部难度</option><option>入门</option><option>进阶</option><option>困难</option></select>
+      <select id="fStatus" aria-label="状态筛选"><option value="ALL">全部状态</option><option value="todo">未通过</option><option value="pass">已通过</option></select>
+      <span class="spacer"></span>
+      <button type="button" id="prevBtn">← 上一题</button>
+      <button type="button" id="nextBtn">下一题 →</button>
+    </div>
+
+    <div class="qcard">
+      <div class="qhead">
+        <span class="idx" id="qIdx">Q-01</span>
+        <h2 id="qTitle">题目加载中…</h2>
+        <span class="badge cat" id="qCat">分类</span>
+        <span class="badge" id="qLevel">难度</span>
+        <span class="badge pass" id="qPass" style="display:none">✓ 已通过</span>
+      </div>
+      <p class="qdesc" id="qDesc"></p>
+      <div class="qmeta" id="qMeta"></div>
+      <div class="fields" id="fieldBox"></div>
+      <textarea class="editor" id="editor" spellcheck="false" placeholder="-- 在这里写 SQL，例如：&#10;SELECT name FROM world WHERE population > 100000000"></textarea>
+      <div class="btnrow">
+        <button type="button" class="primary" id="runBtn">运行并判分</button>
+        <button type="button" id="hintBtn">提示</button>
+        <button type="button" id="ansBtn">查看答案</button>
+        <button type="button" id="clearBtn">清空编辑器</button>
+        <span class="note">引擎：SQLite（sql.js）· 表名和字段名见「样例数据表」</span>
+      </div>
+      <div class="hintbox" id="hintBox"></div>
+      <div class="verdict" id="verdict"></div>
+      <div class="foldrow" id="resultFold" style="display:none">
+        <div class="resbox"><div class="rh">你的结果</div><div class="tblscroll" id="userResult"></div></div>
+        <div class="resbox"><div class="rh">标准答案结果</div><div class="tblscroll" id="stdResult"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 速查模式 ============ -->
+  <section class="panel" id="panelRef">
+    <div class="notice" style="margin-bottom:20px">按知识点分组列出全部题目、提示和标准答案。点条目展开；答案区的按钮可复制 SQL（部分浏览器在 <code>file://</code> 下禁用剪贴板 API，会退化为选中文本）。</div>
+    <div id="refRoot"></div>
+  </section>
+
+  <!-- ============ 公共章节 ============ -->
+  <div class="sec" id="secTables"><span class="num">08</span><h2>样例数据表</h2><span class="tag">6 张 · 字段明细</span></div>
+  <div class="table-wrap">
+    <div id="tableList"></div>
+  </div>
+  <div id="tablePreview" style="margin-top:12px"></div>
+
+  <div class="sec" id="secRules"><span class="num">09</span><h2>方言与判分说明</h2><span class="tag">使用须知</span></div>
+  <div class="callout">
+    <b>1. 为什么是 SQLite？</b> 浏览器里能离线运行的只有嵌入式引擎，所以本题库用 SQLite 方言。你工作里用的 MySQL 语法（如 <code>DATE_SUB(CURDATE(), INTERVAL 29 DAY)</code>）在 SQLite 里对应 <code>date('now','-29 days')</code>；WMS 题目里已给出 MySQL 对照写法。<br>
+    <b>2. 结果集比对规则：</b> 每个单元格转字符串比较（NULL 视为空串），不比较列名；默认把行排序后比较（集合相等），标注「严格比较」的题目按返回顺序逐行比。多行语句取最后一个结果集。<br>
+    <b>3. 样例数据：</b> world 为常见的国家数据，nobel 为 2000–2015 诺奖记录，emp/dept 为经典员工部门表，两张 WMS 表由脚本生成最近 40 天数据（字段已简化，仅保留出题需要的列）。<br>
+    <b>4. 判分是「自比对」：</b> 你的 SQL 与标准答案在同一份数据上执行后比对结果，因此即使跨天导致「最近 30 天」窗口变化，两边仍然一致。
+  </div>
+
+  <div class="foot">
+    SQL 练习场 · 单文件 HTML，双击即可使用，编译脚本为 build.py（题目答案先经 Python sqlite3 验证）。进度仅存于当前浏览器，不会上传。
+  </div>
+</main>
+</div>
+
+<button class="to-top" id="toTop" type="button" aria-label="回到顶部" title="回到顶部">
+<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 10V2M6 2L2.5 5.5M6 2L9.5 5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>回到顶部</span>
+</button>
+
+<script>
+(function(){
+  "use strict";
+  var SQL=null, baseSnap=null, ready=false;
+  if(typeof QUIZ==='undefined'){
+    document.body.innerHTML='<div style="max-width:640px;margin:80px auto;padding:28px 32px;border:1px solid #E2E7EB;border-radius:8px;background:#fff;font-family:system-ui,-apple-system,\'Microsoft YaHei\',sans-serif;line-height:1.9;color:#22272B">'
+      +'<h2 style="margin:0 0 10px;font-size:18px;color:#3B5A6A">这是源模板，不是可直接使用的页面</h2>'
+      +'<p style="margin:0 0 12px;color:#66727B;font-size:13px">template 文件中的题库、引擎都是占位符，需要构建后才会生成完整页面。</p>'
+      +'<p style="margin:0;color:#66727B;font-size:13px">请打开同目录的 <b style="color:#3B5A6A">SQL练习场.html</b> 或 <b style="color:#3B5A6A">SQL闯关.html</b>（不带 .template）。</p>'
+      +'</div>';
+    document.body.style.margin='0';document.body.style.background='#F7F9FA';
+    return;
+  }
+  var QS=QUIZ.questions;
+  var KEY='sql-quiz-progress-v1';
+  var progress={passed:{}};
+  try{ var raw=localStorage.getItem(KEY); if(raw){ var p=JSON.parse(raw); if(p&&p.passed)progress=p; } }catch(e){}
+  function saveProgress(){ try{ localStorage.setItem(KEY,JSON.stringify(progress)); }catch(e){} }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function fresh(){ return new SQL.Database(baseSnap); }
+
+  var state={mode:'practice',cat:'ALL',level:'ALL',status:'ALL',idx:0,list:[],showHint:false,showAns:false,lastCompare:null};
+
+  /* ---------- 引擎初始化 ---------- */
+  function boot(){
+    try{
+      var bin=Uint8Array.from(atob(WASM_B64),function(c){return c.charCodeAt(0);});
+      initSqlJs({wasmBinary:bin}).then(function(mod){
+        SQL=mod;
+        var db=new SQL.Database();
+        db.run(QUIZ.schema);
+        db.run(QUIZ.wmsInserts);
+        baseSnap=db.export();
+        db.close();
+        ready=true;
+        $('engineStatus').className='side-status';
+        $('engineStatus').textContent='SQLite 引擎就绪 · 可运行 SQL 判分';
+        buildList(); renderQuestion(); refreshStats();
+      }).catch(function(e){
+        $('engineStatus').className='side-status bad';
+        $('engineStatus').textContent='引擎加载失败：'+e.message;
+      });
+    }catch(e){
+      $('engineStatus').className='side-status bad';
+      $('engineStatus').textContent='引擎加载失败：'+e.message;
+    }
+  }
+
+  /* ---------- 列表 / 统计 ---------- */
+  function buildList(){
+    state.list=QS.filter(function(q){
+      if(state.cat!=='ALL'&&q.cat!==state.cat)return false;
+      if(state.level!=='ALL'&&q.level!==state.level)return false;
+      var pass=!!progress.passed[q.id];
+      if(state.status==='pass'&&!pass)return false;
+      if(state.status==='todo'&&pass)return false;
+      return true;
+    });
+    if(state.idx>=state.list.length)state.idx=0;
+    $('qCount').textContent=state.list.length;
+  }
+  function refreshStats(){
+    var n=Object.keys(progress.passed).filter(function(k){return progress.passed[k];}).length;
+    $('stTotal').textContent=QS.length; $('stPassed').textContent=n;
+    $('stRate').textContent=(QS.length?Math.round(n/QS.length*100):0)+'%';
+    $('sideTotal').textContent=QS.length; $('sidePassed').textContent=n;
+  }
+
+  /* ---------- 答题模式渲染 ---------- */
+  function renderQuestion(){
+    var q=state.list[state.idx];
+    if(!q){
+      $('qTitle').textContent='当前筛选下没有题目';
+      $('qDesc').textContent='试试更换分类、难度或状态筛选。';
+      $('editor').value=''; $('qIdx').textContent='—';
+      $('qCat').textContent='—'; $('qLevel').textContent='—';
+      $('qPass').style.display='none'; $('qPos').textContent='0';
+      $('fieldBox').innerHTML='';
+      $('hintBox').className='hintbox'; $('verdict').className='verdict';
+      $('resultFold').style.display='none';
+      return;
+    }
+    $('qPos').textContent=state.idx+1;
+    $('qIdx').textContent='Q-'+q.id;
+    $('qTitle').textContent=q.title;
+    $('qCat').textContent=q.cat;
+    $('qLevel').textContent=q.level;
+    $('qPass').style.display=progress.passed[q.id]?'inline-block':'none';
+    $('qDesc').textContent=q.desc;
+    $('qMeta').innerHTML='知识点：<code>'+esc(q.cat)+'</code> &nbsp;·&nbsp; 难度：<code>'+esc(q.level)+'</code> &nbsp;·&nbsp; 比对方式：<code>'+(q.strict?'按行顺序严格比较':'忽略行顺序（集合比较）')+'</code>'+(q.note?'<br>补充说明：'+esc(q.note):'');
+    $('fieldBox').innerHTML=renderFields(q.tables);
+    $('editor').value='';
+    $('hintBox').className='hintbox'; $('hintBox').textContent='';
+    $('verdict').className='verdict'; $('verdict').innerHTML='';
+    $('resultFold').style.display='none';
+    state.showHint=false; state.showAns=false; state.lastCompare=null;
+    $('hintBtn').textContent='提示'; $('ansBtn').textContent='查看答案';
+  }
+
+  /* 相关表字段：写 SQL 前先看这里，避免“不知道写什么字段” */
+  function renderFields(tables){
+    if(!tables||!tables.length||!QUIZ.tableDict)return '';
+    var h='<div class="fh"><b>相关表字段</b><span>本题用到的表与可用字段（悬停字段可看示例值）</span></div>';
+    tables.forEach(function(tn){
+      var t=QUIZ.tableDict[tn]; if(!t)return;
+      h+='<div class="ftbl"><div class="ftn"><code>'+esc(tn)+'</code><em>'+esc(t.label)+'</em></div><div class="fcols">';
+      t.cols.forEach(function(c){
+        h+='<span class="fc" title="'+esc(c.desc)+'　示例：'+esc(c.sample)+'"><code>'+esc(c.name)+'</code>'+
+           '<i>'+esc(c.desc)+'</i><span class="ty">'+esc(c.type)+'</span></span>';
+      });
+      h+='</div></div>';
+    });
+    return h;
+  }
+
+  /* 标准答案 + 解题步骤 + 关键语法点 */
+  function renderAnswer(q){
+    var h='<div class="anshead"><b style="color:var(--accent)">标准答案（SQLite）</b>'+
+          '<button type="button" id="copyAns">复制 SQL</button></div><pre>'+esc(q.sql)+'</pre>';
+    if(q.explain&&q.explain.length){
+      h+='<div class="steps"><div class="sth">解题思路</div><ol>';
+      q.explain.forEach(function(s){ h+='<li>'+esc(s)+'</li>'; });
+      h+='</ol></div>';
+    }
+    if(q.keywords&&q.keywords.length){
+      h+='<div class="kws">关键点：'+q.keywords.map(function(k){return '<code>'+esc(k)+'</code>';}).join('')+'</div>';
+    }
+    if(q.note)h+='<div class="ansnote">'+esc(q.note)+'</div>';
+    return h;
+  }
+
+  function renderTable(columns,values,limit){
+    if(!values||!values.length)return '<div style="padding:10px 12px;font-size:11.5px;color:var(--ink3)">无数据行</div>';
+    var n=Math.min(values.length,limit||30);
+    var h='<table><tr>'+columns.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr>';
+    for(var i=0;i<n;i++){
+      h+='<tr>'+values[i].map(function(v){
+        if(v===null)return '<td class="null">NULL</td>';
+        return '<td>'+esc(v)+'</td>';
+      }).join('')+'</tr>';
+    }
+    h+='</table>';
+    if(values.length>n)h+='<div style="padding:7px 10px;font-size:10.5px;color:var(--ink3)">仅显示前 '+n+' 行（共 '+values.length+' 行）</div>';
+    return h;
+  }
+
+  function norm(res){
+    return (res.values||[]).map(function(row){
+      return row.map(function(v){return v===null?'':String(v);});
+    });
+  }
+  function compare(user,std,strict){
+    var u=norm(user), e=norm(std);
+    if(u.length!==e.length)return {ok:false,msg:'行数不同：你的结果 '+u.length+' 行，标准答案 '+e.length+' 行。'};
+    var us=u.map(function(r){return JSON.stringify(r);});
+    var es=e.map(function(r){return JSON.stringify(r);});
+    if(!strict){ us.sort(); es.sort(); }
+    for(var i=0;i<us.length;i++){
+      if(us[i]!==es[i]){
+        return {ok:false,msg:'第 '+(i+1)+' 行数据不一致（'+(strict?'按位置':'排序后')+'比对）。',row:i};
+      }
+    }
+    if((user.columns||[]).length!==(std.columns||[]).length){
+      return {ok:false,msg:'结果一致，但列数不同：你的结果 '+(user.columns||[]).length+' 列，标准答案 '+(std.columns||[]).length+' 列。判分以数据为准，仍记为通过。',ok:true};
+    }
+    return {ok:true,msg:'结果集完全一致（'+u.length+' 行）。'};
+  }
+
+  function run(){
+    var q=state.list[state.idx];
+    if(!q){ return; }
+    if(!ready){
+      $('verdict').className='verdict show';
+      $('verdict').innerHTML='<b>引擎尚未就绪</b><div class="detail">请稍候再试。</div>';
+      return;
+    }
+    var sql=$('editor').value.trim();
+    if(!sql){
+      $('verdict').className='verdict show';
+      $('verdict').innerHTML='<b>请先写 SQL</b><div class="detail">编辑器为空。</div>';
+      return;
+    }
+    var du=fresh(), ds=fresh(), ur, sr;
+    try{ ur=du.exec(sql); }catch(e){
+      $('verdict').className='verdict show';
+      $('verdict').innerHTML='<b>SQL 执行出错</b><div class="detail">'+esc(e.message)+'</div>';
+      du.close(); ds.close(); return;
+    }
+    try{ sr=ds.exec(q.sql); }catch(e){
+      $('verdict').className='verdict show';
+      $('verdict').innerHTML='<b>标准答案执行出错（题库问题）</b><div class="detail">'+esc(e.message)+'</div>';
+      du.close(); ds.close(); return;
+    }
+    du.close(); ds.close();
+    var u=ur.length?ur[ur.length-1]:{columns:[],values:[]};
+    var s=sr.length?sr[sr.length-1]:{columns:[],values:[]};
+    var cmp=compare(u,s,!!q.strict);
+    state.lastCompare=cmp;
+    $('userResult').innerHTML=renderTable(u.columns,u.values,30);
+    $('stdResult').innerHTML=renderTable(s.columns,s.values,30);
+    $('resultFold').style.display='grid';
+    if(cmp.ok){
+      progress.passed[q.id]=true; saveProgress(); refreshStats();
+      $('qPass').style.display='inline-block';
+      $('verdict').className='verdict show ok';
+      $('verdict').innerHTML='<b>✓ 通过</b><div class="detail">'+esc(cmp.msg)+' 已记入本地进度。</div>';
+    }else{
+      $('verdict').className='verdict show';
+      $('verdict').innerHTML='<b>✗ 未通过</b><div class="detail">'+esc(cmp.msg)+'</div>';
+    }
+  }
+
+  /* ---------- 速查模式渲染 ---------- */
+  function buildRef(){
+    var root=$('refRoot'), html='';
+    QUIZ.cats.forEach(function(cat,ci){
+      var arr=QS.filter(function(q){return q.cat===cat;});
+      if(!arr.length)return;
+      html+='<div class="sec" id="ref-'+ci+'"><span class="num">'+String(ci+1).padStart(2,'0')+'</span><h2>'+esc(cat)+'</h2><span class="tag">'+arr.length+' 题</span></div>';
+      arr.forEach(function(q){
+        var done=!!progress.passed[q.id];
+        var fh='';
+        (q.tables||[]).forEach(function(tn){
+          var t=QUIZ.tableDict&&QUIZ.tableDict[tn]; if(!t)return;
+          fh+='<div class="ftbl"><div class="ftn"><code>'+esc(tn)+'</code><em>'+esc(t.label)+'</em></div><div class="fcols">'+
+            t.cols.map(function(c){return '<span class="fc" title="'+esc(c.desc)+'　示例：'+esc(c.sample)+'"><code>'+esc(c.name)+'</code><i>'+esc(c.desc)+'</i></span>';}).join('')+
+            '</div></div>';
+        });
+        if(fh)fh='<div class="fields" style="margin:10px 0 2px">'+fh+'</div>';
+        html+='<details><summary><span class="badge" style="margin-right:9px">'+esc(q.id)+'</span>'+esc(q.title)+
+          ' <span style="color:var(--ink3);font-size:11px;margin-left:8px">'+esc(q.level)+(done?' · 已通过':'')+'</span></summary>'+
+          '<div class="dbody"><div class="qd">'+esc(q.desc)+'</div>'+
+          '<div class="row"><span class="k">比对方式</span><span style="font-size:11.5px;color:var(--ink2)">'+(q.strict?'按行顺序严格比较':'忽略行顺序（集合比较）')+'</span></div>'+
+          fh+
+          (q.hint?'<div class="row"><span class="k">提示</span><span style="font-size:11.5px;color:var(--ink2)">'+esc(q.hint)+'</span></div>':'')+
+          '<div class="row" style="margin-bottom:0"><span class="k">标准答案</span><button type="button" data-copy="'+esc(q.id)+'">复制 SQL</button></div>'+
+          '<pre>'+esc(q.sql)+'</pre>'+
+          (q.explain&&q.explain.length?'<div class="steps"><div class="sth">解题思路</div><ol>'+q.explain.map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ol></div>':'')+
+          (q.keywords&&q.keywords.length?'<div class="kws">关键点：'+q.keywords.map(function(k){return '<code>'+esc(k)+'</code>';}).join('')+'</div>':'')+
+          (q.note?'<div class="ansnote">'+esc(q.note)+'</div>':'')+
+          '</div></details>';
+      });
+    });
+    root.innerHTML=html;
+    root.querySelectorAll('button[data-copy]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var q=QS.filter(function(x){return x.id===b.getAttribute('data-copy');})[0];
+        if(!q)return;
+        copyText(q.sql,b);
+      });
+    });
+  }
+  function copyText(text,btn){
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){flash(btn,'已复制');}).catch(function(){fallbackCopy(text,btn);});
+    }else{ fallbackCopy(text,btn); }
+  }
+  function fallbackCopy(text,btn){
+    var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); flash(btn,'已复制'); }catch(e){ flash(btn,'请手动选中'); }
+    document.body.removeChild(ta);
+  }
+  function flash(btn,msg){ var old=btn.textContent; btn.textContent=msg; setTimeout(function(){btn.textContent=old;},1200); }
+
+  /* ---------- 数据表 ---------- */
+  function buildTables(){
+    var dict=QUIZ.tableDict||{};
+    $('tableList').innerHTML=Object.keys(dict).map(function(name){
+      var t=dict[name];
+      var rows=t.cols.map(function(c){
+        return '<tr><td><code>'+esc(c.name)+'</code></td><td>'+esc(c.type)+'</td><td>'+esc(c.desc)+'</td><td><code>'+esc(c.sample)+'</code></td></tr>';
+      }).join('');
+      return '<div class="tcard"><div class="tcardh"><b>'+esc(name)+'</b><em>'+esc(t.label)+'</em>'+
+        '<button type="button" data-tbl="'+esc(name)+'">查看样例数据</button></div>'+
+        '<div class="tdesc">'+esc(t.desc)+'</div>'+
+        '<table class="subtbl"><tr><th style="width:22%">字段</th><th style="width:13%">类型</th><th style="width:42%">含义</th><th>示例值</th></tr>'+rows+'</table></div>';
+    }).join('');
+    $('tableList').querySelectorAll('button[data-tbl]').forEach(function(b){
+      b.addEventListener('click',function(){ preview(b.getAttribute('data-tbl')); });
+    });
+  }
+  function preview(name){
+    if(!ready){ return; }
+    var db=fresh(), res;
+    try{ res=db.exec('SELECT * FROM "'+name+'" LIMIT 50'); }catch(e){ db.close(); return; }
+    db.close();
+    var r=res.length?res[0]:{columns:[],values:[]};
+    $('tablePreview').innerHTML='<div class="resbox"><div class="rh">'+esc(name)+' · 前 50 行</div><div class="tblscroll">'+renderTable(r.columns,r.values,50)+'</div></div>';
+  }
+
+  /* ---------- 交互绑定 ---------- */
+  function setMode(m){
+    state.mode=m;
+    $('panelPractice').classList.toggle('show',m==='practice');
+    $('panelRef').classList.toggle('show',m==='ref');
+    $('modePractice').classList.toggle('on',m==='practice');
+    $('modeRef').classList.toggle('on',m==='ref');
+    $('sideView').textContent=m==='practice'?'答题':'速查';
+    if(m==='ref'){ buildRef(); }
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function bind(){
+    $('modePractice').addEventListener('click',function(){setMode('practice');});
+    $('modeRef').addEventListener('click',function(){setMode('ref');});
+    ['fCat','fLevel','fStatus'].forEach(function(id){
+      $(id).addEventListener('change',function(){
+        state.cat=$('fCat').value; state.level=$('fLevel').value; state.status=$('fStatus').value;
+        buildList(); renderQuestion();
+        var ci=QUIZ.cats.indexOf(state.cat);
+        if(ci>=0)syncNav(ci+1); else syncNav(0);
+      });
+    });
+    $('prevBtn').addEventListener('click',function(){
+      if(!state.list.length)return;
+      state.idx=(state.idx-1+state.list.length)%state.list.length; renderQuestion();
+    });
+    $('nextBtn').addEventListener('click',function(){
+      if(!state.list.length)return;
+      state.idx=(state.idx+1)%state.list.length; renderQuestion();
+    });
+    $('runBtn').addEventListener('click',run);
+    $('editor').addEventListener('keydown',function(e){
+      if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){ e.preventDefault(); run(); }
+    });
+    $('hintBtn').addEventListener('click',function(){
+      var q=state.list[state.idx]; if(!q)return;
+      state.showHint=!state.showHint;
+      $('hintBox').className='hintbox'+(state.showHint?' show':'');
+      $('hintBox').innerHTML='<b style="color:var(--accent)">提示：</b>'+esc(q.hint||'本题无额外提示。');
+      $('hintBtn').textContent=state.showHint?'收起提示':'提示';
+    });
+    $('ansBtn').addEventListener('click',function(){
+      var q=state.list[state.idx]; if(!q)return;
+      state.showAns=!state.showAns;
+      $('ansBtn').textContent=state.showAns?'收起答案':'查看答案';
+      if(state.showAns){
+        $('hintBox').className='hintbox show';
+        $('hintBox').innerHTML=renderAnswer(q);
+        $('copyAns').addEventListener('click',function(){copyText(q.sql,$('copyAns'));});
+      }else{
+        $('hintBox').className='hintbox'+(state.showHint?' show':'');
+        $('hintBox').innerHTML=state.showHint?'<b style="color:var(--accent)">提示：</b>'+esc(q.hint||'本题无额外提示。'):'';
+      }
+    });
+    $('clearBtn').addEventListener('click',function(){ $('editor').value=''; $('editor').focus(); });
+    $('resetBtn').addEventListener('click',function(){
+      if(!window.confirm('确定清空所有答题进度？此操作不可撤销。'))return;
+      progress={passed:{}}; saveProgress(); refreshStats(); renderQuestion(); buildRef();
+    });
+    $('sideNav').querySelectorAll('a[data-cat]').forEach(function(a){
+      a.addEventListener('click',function(){
+        var cat=a.getAttribute('data-cat');
+        if(state.mode==='practice'){
+          state.cat=cat; $('fCat').value=cat; buildList(); renderQuestion();
+          var ci=QUIZ.cats.indexOf(cat); syncNav(ci>=0?ci+1:0);
+        }else{
+          var ci2=QUIZ.cats.indexOf(cat);
+          var el=$('ref-'+ci2);
+          if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+          else window.scrollTo({top:0,behavior:'smooth'});
+        }
+      });
+    });
+    var btn=$('toTop');
+    function sync(){ if(window.scrollY>380)btn.classList.add('show'); else btn.classList.remove('show'); }
+    window.addEventListener('scroll',sync,{passive:true}); sync();
+    btn.addEventListener('click',function(){ window.scrollTo({top:0,behavior:'smooth'}); });
+  }
+  function syncNav(i){
+    var links=$('sideNav').querySelectorAll('a');
+    links.forEach(function(a,idx){ a.classList.toggle('on',idx===i); });
+  }
+
+  /* ---------- 启动 ---------- */
+  QUIZ.cats.forEach(function(c){
+    var o=document.createElement('option'); o.textContent=c; o.value=c; $('fCat').appendChild(o);
+  });
+  $('stTotal').textContent=QS.length; $('sideTotal').textContent=QS.length;
+  buildTables(); bind(); boot();
+})();
+</script>
+</body>
+</html>

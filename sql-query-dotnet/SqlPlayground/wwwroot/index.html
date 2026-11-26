@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQL 查询实验室 · 后端版</title>
+<!-- 双栏文档站主题。数据来自本机 ASP.NET Core 后端查询配置的数据源（SQLite / MySQL / SQL Server）。 -->
+<style>
+:root{
+  --bg:#F7F9FA; --paper:#FFFFFF; --ink:#22272B; --ink2:#66727B; --ink3:#94A0A8;
+  --line:#E2E7EB; --line2:#EDF0F3; --code:#F5F7F9;
+  --accent:#3B5A6A; --accent-soft:#EAF0F3; --accent-line:#C9D6DE;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.72;-webkit-font-smoothing:antialiased}
+.layout{display:flex;align-items:flex-start;max-width:1400px;margin:0 auto;min-height:100vh}
+.sidebar{position:sticky;top:0;flex:0 0 246px;width:246px;height:100vh;overflow-y:auto;background:var(--paper);border-right:1px solid var(--line);padding:24px 16px 22px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:9px;margin-bottom:18px;padding:0 3px}
+.brand .sq{width:22px;height:22px;border-radius:5px;background:var(--accent);flex:0 0 auto}
+.brand .t{font-size:13px;font-weight:600}
+.brand .s{font-size:11px;color:var(--ink3)}
+.side-status{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:6px;padding:9px 11px;font-size:11.5px;color:var(--accent);line-height:1.6;margin-bottom:16px}
+.side-status.bad{background:var(--paper);border-color:var(--line);color:var(--ink2)}
+.nav-label{font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--ink3);margin:0 0 8px;padding:0 3px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;justify-content:space-between;align-items:baseline;text-decoration:none;color:var(--ink2);font-size:12px;padding:6px 9px;border-radius:5px;cursor:pointer;border-left:2px solid transparent}
+.nav a:hover{background:var(--accent-soft);color:var(--accent)}
+.nav a.on{background:var(--accent-soft);color:var(--accent);border-left-color:var(--accent);font-weight:600}
+.nav a span{font-size:10.5px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.nav a.on span{color:var(--accent)}
+.side-rule{height:1px;background:var(--line);margin:18px 0 14px}
+.side-block{margin-bottom:16px}
+
+/* 题库入口：从查询页一键跳到练习场 / 闯关 */
+.quiz-entry{background:var(--paper);border:1px solid var(--accent-line);border-radius:6px;padding:10px 11px;margin-bottom:14px}
+.quiz-entry .qh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px}
+.quiz-entry .qh b{font-size:11.5px;color:var(--accent);letter-spacing:.03em}
+.quiz-entry .qh em{font-style:normal;font-size:10.5px;color:var(--ink3)}
+.quiz-entry a{display:flex;align-items:center;justify-content:space-between;gap:8px;text-decoration:none;color:var(--ink2);font-size:12px;padding:6px 8px;border-radius:5px;border:1px solid var(--line);background:#FBFCFD;margin-top:5px;transition:all .15s}
+.quiz-entry a:hover{border-color:var(--accent-line);color:var(--accent);background:var(--accent-soft)}
+.quiz-entry a span{font-size:10.5px;color:var(--ink3)}
+.quiz-entry a:hover span{color:var(--accent)}
+
+/* 主区域顶部的题库横幅（比侧栏更显眼） */
+.quiz-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:6px;
+  padding:11px 14px;margin-bottom:22px}
+.quiz-banner .qb-t b{color:var(--accent);font-size:13px;margin-right:9px}
+.quiz-banner .qb-t span{color:var(--ink2);font-size:11.5px}
+.quiz-banner .qb-a{display:flex;gap:8px;flex-wrap:wrap}
+.quiz-banner .qb-a a{text-decoration:none;color:var(--accent);font-size:12px;padding:5px 11px;
+  border:1px solid var(--accent-line);border-radius:5px;background:var(--paper);transition:all .15s}
+.quiz-banner .qb-a a:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* file:// 打开时的说明条 */
+.file-hint{background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:0 6px 6px 0;padding:10px 13px;margin-bottom:18px;font-size:12px;color:var(--ink2);line-height:1.75}
+.file-hint b{display:block;color:var(--accent);font-size:12.5px;margin-bottom:3px}
+.file-hint span{display:block}
+.side-block .k{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--ink3);margin-bottom:7px;padding:0 3px}
+.tbl-mini{font-family:var(--mono);font-size:10.5px;color:var(--ink2);padding:5px 8px;border:1px solid var(--line);border-radius:5px;margin-bottom:5px;cursor:pointer;background:var(--paper)}
+.tbl-mini:hover{border-color:var(--accent);color:var(--accent)}
+.side-foot{margin-top:auto;font-size:11px;color:var(--ink3);line-height:1.7;border-top:1px solid var(--line);padding-top:13px}
+
+.content{flex:1;min-width:0;max-width:1000px;padding:30px 38px 76px}
+.masthead{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.16em;color:var(--accent);margin-bottom:9px}
+h1{font-size:28px;font-weight:600;letter-spacing:-.025em;margin:0 0 6px}
+.masthead .meta{color:var(--ink2);font-size:12.5px;margin:0}
+.notice{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:6px;padding:12px 15px;margin-bottom:20px;font-size:12.5px;color:var(--ink2);line-height:1.75}
+.notice b{color:var(--accent)}
+.codepanel{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:16px 18px;margin-bottom:18px}
+.codepanel .ph{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.codepanel .ph h2{font-size:15px;font-weight:600;margin:0;flex:1}
+.codepanel .ph .badge{font-size:10.5px;padding:2px 8px;border:1px solid var(--accent-line);border-radius:5px;color:var(--accent);background:var(--accent-soft)}
+.editor{width:100%;min-height:112px;resize:vertical;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--ink);background:var(--code);border:1px solid var(--line);border-radius:6px;padding:13px 15px;outline:none;tab-size:2}
+.editor:focus{border-color:var(--accent)}
+.editor::placeholder{color:var(--ink3)}
+.btnrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+button{font:inherit;font-size:11.5px;padding:6px 12px;border:1px solid var(--line);background:transparent;border-radius:5px;cursor:pointer;color:var(--ink2);transition:all .15s}
+button:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{border-color:var(--accent);color:var(--accent)}
+button.primary:hover:not(:disabled){background:var(--accent);color:#fff}
+.btnrow .note{font-size:11px;color:var(--ink3);margin-left:auto}
+.err{display:none;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:11px 14px;margin-top:11px;font-size:12px;color:var(--ink2)}
+.err.show{display:block}
+.err b{color:var(--ink)}
+
+.reshead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:24px 0 11px}
+.reshead h2{font-size:16px;font-weight:600;margin:0;flex:1}
+.reshead .meta{font-size:11.5px;color:var(--ink3)}
+.reshead .meta b{color:var(--accent);font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:4px;margin-bottom:10px}
+.tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.resbox{background:var(--paper);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.tblscroll{overflow:auto;max-height:420px}
+table{border-collapse:collapse;font-size:11.5px;width:100%}
+th,td{text-align:left;padding:8px 11px;border-bottom:1px solid var(--line2);white-space:nowrap;vertical-align:top}
+th{position:sticky;top:0;font-size:10.5px;font-weight:600;letter-spacing:.04em;color:var(--ink2);background:#F7F9FA;z-index:1}
+tr:last-child td{border-bottom:none}
+td.null{color:var(--ink3);font-style:italic}
+td.num{font-variant-numeric:tabular-nums;text-align:right}
+.chartbox{padding:16px 18px 20px;overflow-x:auto;min-height:220px}
+.chartbox svg{display:block;max-width:100%;height:auto}
+.chart-empty{padding:40px 12px;text-align:center;color:var(--ink3);font-size:12.5px}
+.axis{stroke:var(--line);stroke-width:1}
+.grid{stroke:var(--line2);stroke-width:1}
+.tick{fill:var(--ink3);font-size:10px;font-family:var(--sans)}
+.bar{fill:var(--accent)}
+.line{fill:none;stroke:var(--accent);stroke-width:2}
+.dot{fill:var(--accent)}
+.slice{stroke:var(--paper);stroke-width:1.5}
+
+.sec{scroll-margin-top:70px;margin:32px 0 12px;display:flex;align-items:center;gap:11px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.sec .num{font-size:11px;font-weight:600;color:var(--ink3);letter-spacing:.08em;font-variant-numeric:tabular-nums}
+.sec h2{font-size:17px;font-weight:600;margin:0}
+.sec .tag{font-size:11px;padding:2px 9px;border:1px solid var(--line);border-radius:5px;margin-left:auto;color:var(--ink2);background:var(--paper)}
+.example{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:10px 14px;margin-bottom:8px;cursor:pointer}
+.example:hover{border-color:var(--accent)}
+.example .t{font-size:12.5px;font-weight:600;color:var(--ink)}
+.example .s{font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:2px;word-break:break-all}
+.history{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:7px 12px;margin-bottom:5px;font-family:var(--mono);font-size:11px;color:var(--ink2);cursor:pointer;word-break:break-all}
+.history:hover{border-color:var(--accent);color:var(--accent)}
+.callout{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:13px 16px;font-size:12.5px;color:var(--ink2);line-height:1.8}
+.callout b{color:var(--accent)}
+code{font-family:var(--mono);font-size:11.5px;background:var(--code);padding:1px 5px;border-radius:3px;color:#4B555C}
+.foot{margin-top:36px;padding-top:15px;border-top:1px solid var(--line);color:var(--ink3);font-size:11.5px;line-height:1.8}
+.to-top{position:fixed;right:26px;bottom:26px;z-index:20;display:flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--accent);font-size:11.5px;cursor:pointer;opacity:0;visibility:hidden;transform:translateY(6px);transition:opacity .18s,transform .18s,visibility .18s}
+.to-top.show{opacity:1;visibility:visible;transform:none}
+.to-top svg{width:12px;height:12px;display:block}
+@media (max-width:900px){
+  .layout{flex-direction:column}
+  .sidebar{position:static;width:100%;height:auto;flex:none;border-right:none;border-bottom:1px solid var(--line);padding:15px 17px}
+  .side-rule,.side-foot{display:none}
+  .content{padding:22px 17px 60px;max-width:none}
+  h1{font-size:24px}
+}
+@media print{
+  body{background:#fff}.sidebar,.to-top,.btnrow,.tabs{display:none!important}
+  .content{padding:0;max-width:none}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="brand"><div class="sq"></div><div><div class="t">SQL 查询实验室</div><div class="s">后端服务 · 真实数据库</div></div></div>
+  <div class="side-status" id="status">连接后端中…</div>
+
+  <div class="quiz-entry">
+    <div class="qh"><b>SQL 题库</b><em>57 题</em></div>
+    <a href="quiz/practice.html" target="_blank" rel="noopener">SQL 练习场 <span>答题 + 速查 →</span></a>
+    <a href="quiz/challenge.html" target="_blank" rel="noopener">SQL 闯关 <span>分步引导 →</span></a>
+  </div>
+
+  <div class="nav-label">页面导航</div>
+  <nav class="nav">
+    <a href="#secQuery" class="on"><span>01</span>SQL 查询</a>
+    <a href="#secResult"><span>02</span>查询结果为图表</a>
+    <a href="#secTables"><span>03</span>数据表结构</a>
+    <a href="#secExamples"><span>04</span>示例查询</a>
+    <a href="#secHistory"><span>05</span>查询历史</a>
+  </nav>
+  <div class="side-rule"></div>
+  <div class="side-block"><div class="k">数据库表（点击填 SQL）</div><div id="tableMini"></div></div>
+  <div class="side-foot">数据源：本地 wms.db（只读）<br>服务：ASP.NET Core（由托盘控制器管理）<br>接口：/api/query · /api/tables</div>
+</aside>
+
+<main class="content">
+  <header class="masthead">
+    <div class="eyebrow">本地全栈 · ASP.NET Core 后端 · 可配置数据源 · 自动图表</div>
+    <h1>SQL 查询实验室</h1>
+    <p class="meta">浏览器写 SQL → 后端真实执行 → 结果表格与可视化图表</p>
+  </header>
+
+  <div class="quiz-banner">
+    <div class="qb-t"><b>SQL 题库</b><span>57 道题，7 个知识点，写完即判分</span></div>
+    <div class="qb-a">
+      <a href="quiz/practice.html" target="_blank" rel="noopener">练习场（答题 + 速查）→</a>
+      <a href="quiz/challenge.html" target="_blank" rel="noopener">闯关（分步引导）→</a>
+    </div>
+  </div>
+
+  <div class="notice"><b>这是真正的后端查询：</b>SQL 通过 HTTP 发给本机的 ASP.NET 服务，服务以<b>只读方式</b>连接配置的数据源执行，再把 JSON 结果返回。只允许 <code>SELECT</code>/<code>WITH</code>，写入语句会被后端拦截。图表根据结果集自动选择：有日期列→折线，单指标分类→柱状，占比数据→饼图。</div>
+
+  <section class="sec" id="secQuery" style="margin-top:0"><span class="num">01</span><h2>SQL 查询</h2><span class="tag">后端执行</span></section>
+  <div class="codepanel">
+    <div class="ph"><h2>执行 SQL</h2><span class="badge" id="dbBadge">只读连接</span></div>
+    <textarea class="editor" id="editor" spellcheck="false" placeholder="SELECT date(creation_date) AS d, COUNT(id) AS cnt FROM winv_inbound_order_lines GROUP BY d ORDER BY d">SELECT name, population FROM world ORDER BY population DESC LIMIT 5</textarea>
+    <div class="btnrow">
+      <button type="button" class="primary" id="runBtn">运行查询</button>
+      <button type="button" id="clearBtn">清空</button>
+      <span class="note">Ctrl / ⌘ + Enter 运行 · 最多返回 500 行</span>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="reshead">
+    <h2 id="resTitle">查询结果</h2>
+    <span class="meta" id="resMeta">运行查询后显示</span>
+  </div>
+  <div class="tabs">
+    <button type="button" id="tabTable" class="on">表格</button>
+    <button type="button" id="tabChart">图表</button>
+  </div>
+  <div class="resbox" id="resultBox">
+    <div class="chart-empty" id="emptyHint">还没有查询结果。写一条 SQL 并运行。</div>
+    <div class="tblscroll" id="tableWrap" style="display:none"></div>
+    <div class="chartbox" id="chartWrap" style="display:none"></div>
+  </div>
+
+  <div class="sec" id="secTables"><span class="num">03</span><h2>数据表结构</h2><span class="tag" id="tblTag">加载中</span></div>
+  <div class="table-wrap" style="overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--paper)">
+    <table><tr><th style="width:24%">表名</th><th style="width:16%">行数</th><th>字段</th></tr><tbody id="schemaBody"></tbody></table>
+  </div>
+
+  <div class="sec" id="secExamples"><span class="num">04</span><h2>示例查询</h2><span class="tag">点击填入编辑器</span></div>
+  <div id="examples"></div>
+
+  <div class="sec" id="secHistory"><span class="num">05</span><h2>查询历史</h2><span class="tag">本会话</span></div>
+  <div id="history"><div style="font-size:11.5px;color:var(--ink3)">暂无记录</div></div>
+
+  <div class="sec" id="secRules"><span class="num">06</span><h2>运行说明</h2><span class="tag">启动方式</span></div>
+  <div class="callout">
+    <b>启动：</b>双击 <code>SqlController.exe</code>（或运行 <code>dotnet run --project SqlController</code>），托盘里点「启动服务」，然后打开 <code>http://127.0.0.1:5288</code>。<br>
+    <b>重建数据库：</b>在 sql-quiz 目录执行 <code>python make_db.py</code>，把生成的 wms.db 复制到 <code>SqlPlayground/</code>；或在控制器里点「重新编译并重启」。<br>
+    <b>安全：</b>SQLite 以 <code>mode=ro</code> 打开；MySQL/SQL Server 建议只读账号。后端再叠加只读语句白名单、单条语句校验、5 秒超时和 500 行上限。<br>
+    <b>图表规则：</b>第一列作为分类轴，数值列作为指标；日期/时间列自动识别为折线图，单数值列用柱状图，多数值列分组柱状。
+  </div>
+
+  <div class="foot">SQL 查询实验室 · 本地全栈应用 · 数据来自真实 SQLite 文件，非浏览器模拟。</div>
+</main>
+</div>
+
+<button class="to-top" id="toTop" type="button" aria-label="回到顶部">
+<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 10V2M6 2L2.5 5.5M6 2L9.5 5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>回到顶部</span>
+</button>
+
+<script>
+(function(){
+  "use strict";
+  var $=function(id){return document.getElementById(id);};
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  var last=null, view='table', hist=[], tables=[];
+
+  // 后端用 ApiEnvelope 信封：{success,data,error,...}；这里解包成扁平对象，兼容旧版结构
+  function unwrap(d){
+    if(!d)return d;
+    if(typeof d.success==='boolean'&&('data' in d)){
+      var o=d.success?(d.data||{}):{};
+      o.ok=d.success; o.errorMsg=d.error?d.error.message:'';
+      return o;
+    }
+    return d;
+  }
+  function api(path,cb){
+    fetch(path).then(function(r){return r.json();}).then(function(x){cb(unwrap(x));}).catch(function(e){
+      $('status').className='side-status bad';
+      $('status').textContent='后端未连接：'+e.message+'\n请在托盘控制器里点「启动服务」';
+    });
+  }
+
+  function init(){
+    api('/api/health',function(d){
+      if(d.ok){
+        $('status').className='side-status';
+        var prov={sqlite:'SQLite',mysql:'MySQL',sqlserver:'SQL Server'}[d.provider]||d.provider||'数据库';
+        $('status').textContent='后端已连接 · '+prov+' · 只读';
+        $('dbBadge').textContent=(d.target||d.db||'数据库')+' · 只读';
+      }
+    });
+    api('/api/tables',function(d){
+      if(!d.ok)return;
+      tables=d.tables;
+      $('tblTag').textContent=tables.length+' 张表';
+      $('schemaBody').innerHTML=tables.map(function(t){
+        return '<tr><td><b>'+esc(t.name)+'</b></td><td>'+t.rows+' 行</td><td><code>'+
+          t.columns.map(function(c){return esc(c.name)+(c.pk?' (PK)':'');}).join(', ')+'</code></td></tr>';
+      }).join('');
+      $('tableMini').innerHTML=tables.map(function(t){
+        return '<div class="tbl-mini" data-tbl="'+esc(t.name)+'">'+esc(t.name)+' · '+t.rows+'</div>';
+      }).join('');
+      $('tableMini').querySelectorAll('.tbl-mini').forEach(function(el){
+        el.addEventListener('click',function(){
+          $('editor').value='SELECT * FROM "'+el.getAttribute('data-tbl')+'" LIMIT 20';
+          window.scrollTo({top:0,behavior:'smooth'});
+        });
+      });
+    });
+    $('examples').innerHTML=EXAMPLES.map(function(e,i){
+      return '<div class="example" data-i="'+i+'"><div class="t">'+esc(e.t)+'</div><div class="s">'+esc(e.s)+'</div></div>';
+    }).join('');
+    $('examples').querySelectorAll('.example').forEach(function(el){
+      el.addEventListener('click',function(){
+        $('editor').value=EXAMPLES[parseInt(el.getAttribute('data-i'),10)].q;
+        window.scrollTo({top:0,behavior:'smooth'});
+      });
+    });
+  }
+
+  function run(){
+    var sql=$('editor').value.trim();
+    if(!sql){ showErr('请先写 SQL'); return; }
+    $('err').className='err';
+    $('runBtn').disabled=true; $('runBtn').textContent='执行中…';
+    fetch('/api/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sql:sql})})
+      .then(function(r){return r.json();})
+      .then(function(x){
+        $('runBtn').disabled=false; $('runBtn').textContent='运行查询';
+        var d=unwrap(x);
+        if(!d.ok){ showErr(d.errorMsg||d.error||'查询失败'); return; }
+        last=d;
+        hist.unshift({sql:sql,rows:d.rowCount,ms:d.elapsedMs});
+        if(hist.length>12)hist.pop();
+        renderHistory();
+        $('resTitle').textContent='查询结果 · '+d.rowCount+' 行';
+        $('resMeta').innerHTML='耗时 <b>'+d.elapsedMs+' ms</b>'+(d.truncated?' · 已截断至 '+d.rowCount+' 行':'')+' · 列数 '+d.columns.length;
+        $('emptyHint').style.display='none';
+        renderTable(d); renderChart(d);
+        setView(view);
+      })
+      .catch(function(e){
+        $('runBtn').disabled=false; $('runBtn').textContent='运行查询';
+        showErr('无法连接后端：'+e.message);
+      });
+  }
+  function showErr(msg){ $('err').className='err show'; $('err').innerHTML='<b>查询失败：</b>'+esc(msg); }
+  function renderHistory(){
+    $('history').innerHTML=hist.length?hist.map(function(h){
+      return '<div class="history" data-sql="'+esc(h.sql)+'">'+esc(h.sql)+' <span style="color:var(--ink3)">— '+h.rows+' 行 / '+h.ms+'ms</span></div>';
+    }).join(''):'<div style="font-size:11.5px;color:var(--ink3)">暂无记录</div>';
+    $('history').querySelectorAll('.history').forEach(function(el){
+      el.addEventListener('click',function(){ $('editor').value=el.getAttribute('data-sql'); window.scrollTo({top:0,behavior:'smooth'}); });
+    });
+  }
+  function renderTable(d){
+    var h='<table><tr>'+d.columns.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr>';
+    d.rows.forEach(function(row){
+      h+='<tr>'+row.map(function(v){
+        if(v===null)return '<td class="null">NULL</td>';
+        if(typeof v==='number')return '<td class="num">'+esc(v)+'</td>';
+        return '<td>'+esc(v)+'</td>';
+      }).join('')+'</tr>';
+    });
+    $('tableWrap').innerHTML=h+'</table>';
+  }
+
+  /* ---------- 自动图表 ---------- */
+  function isNum(v){ return typeof v==='number'&&isFinite(v); }
+  function isDate(s){ return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}([ T]|$)/.test(s); }
+  function niceMax(v){
+    if(v<=0)return 1;
+    var p=Math.pow(10,Math.floor(Math.log10(v)));
+    var n=v/p;
+    var m=n<=1?1:n<=2?2:n<=5?5:10;
+    return m*p;
+  }
+  function chartSvg(labels,series,kind){
+    var W=920,H=320,L=58,R=20,T=24,B=66;
+    var iw=W-L-R, ih=H-T-B;
+    var max=0;
+    series.forEach(function(s){s.data.forEach(function(v){if(v>max)max=v;});});
+    max=niceMax(max);
+    var s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="查询结果图表">';
+    // 网格与刻度
+    for(var i=0;i<=4;i++){
+      var y=T+ih-ih*i/4;
+      s+='<line class="grid" x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'"/>';
+      s+='<text class="tick" x="'+(L-8)+'" y="'+(y+3)+'" text-anchor="end">'+fmt(max*i/4)+'</text>';
+    }
+    var n=labels.length||1;
+    var slot=iw/n, bw=Math.max(3,Math.min(38,slot*0.7/(series.length||1)));
+    labels.forEach(function(lb,i){
+      var cx=L+slot*i+slot/2;
+      if(n<=14||i%Math.ceil(n/12)===0){
+        var txt=String(lb).length>13?String(lb).slice(0,12)+'…':String(lb);
+        s+='<text class="tick" x="'+cx+'" y="'+(T+ih+18)+'" text-anchor="end" transform="rotate(-32 '+cx+' '+(T+ih+18)+')">'+esc(txt)+'</text>';
+      }
+      series.forEach(function(se,si){
+        var v=se.data[i]||0;
+        var h=ih*v/max;
+        if(kind==='line'){
+          if(i===0)s+='<polyline class="line" points="';
+          s+=(L+slot*i+slot/2)+','+(T+ih-h)+' ';
+          if(i===n-1)s+='"/>';
+        }else{
+          var x=cx-(series.length*bw)/2+si*bw;
+          s+='<rect class="bar" x="'+x.toFixed(1)+'" y="'+(T+ih-h).toFixed(1)+'" width="'+(bw-1.5).toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2"><title>'+esc(se.name)+' · '+esc(lb)+' = '+esc(v)+'</title></rect>';
+        }
+      });
+    });
+    if(kind==='line'){
+      series.forEach(function(se){
+        se.data.forEach(function(v,i){
+          s+='<circle class="dot" cx="'+(L+slot*i+slot/2)+'" cy="'+(T+ih-ih*v/max)+'" r="2.5"><title>'+esc(lbAt(labels,i))+' = '+esc(v)+'</title></circle>';
+        });
+      });
+    }
+    s+='<line class="axis" x1="'+L+'" y1="'+(T+ih)+'" x2="'+(W-R)+'" y2="'+(T+ih)+'"/>';
+    // 图例
+    if(series.length>1){
+      series.forEach(function(se,i){
+        var x=L+8+i*130;
+        s+='<rect x="'+x+'" y="6" width="10" height="10" rx="2" class="bar"/>';
+        s+='<text class="tick" x="'+(x+15)+'" y="15">'+esc(se.name)+'</text>';
+      });
+    }
+    s+='</svg>';
+    return s;
+  }
+  function lbAt(a,i){return a[i]===undefined?i:a[i];}
+  function fmt(v){
+    if(v>=1e9)return (v/1e9).toFixed(1)+'B';
+    if(v>=1e6)return (v/1e6).toFixed(1)+'M';
+    if(v>=1e3)return (v/1e3).toFixed(1)+'K';
+    if(Number.isInteger(v))return String(v);
+    return v.toFixed(1);
+  }
+  function pieSvg(labels,values){
+    var W=920,H=320,cx=250,cy=160,r=120;
+    var total=values.reduce(function(a,b){return a+b;},0);
+    if(total<=0)return chartSvg(labels,[{name:'值',data:values}],'bar');
+    var colors=['#3B5A6A','#6E8B99','#9BB2BD','#C2D0D8','#DCE5EA','#54707E','#87A0AD','#B4C6CF'];
+    var s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="占比饼图">';
+    var a0=-Math.PI/2;
+    values.forEach(function(v,i){
+      var a1=a0+2*Math.PI*v/total;
+      var x0=cx+r*Math.cos(a0),y0=cy+r*Math.sin(a0);
+      var x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1);
+      var large=(a1-a0)>Math.PI?1:0;
+      s+='<path d="M '+cx+' '+cy+' L '+x0.toFixed(1)+' '+y0.toFixed(1)+' A '+r+' '+r+' 0 '+large+' 1 '+x1.toFixed(1)+' '+y1.toFixed(1)+' Z" fill="'+colors[i%colors.length]+'" class="slice"><title>'+esc(labels[i])+' = '+esc(v)+' ('+(v/total*100).toFixed(1)+'%)</title></path>';
+      a0=a1;
+    });
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="52" fill="#FFFFFF"/>';
+    s+='<text x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle" style="font-size:12px;fill:var(--ink2)">合计</text>';
+    s+='<text x="'+cx+'" y="'+(cy+18)+'" text-anchor="middle" style="font-size:17px;font-weight:600;fill:var(--ink)">'+esc(fmt(total))+'</text>';
+    labels.slice(0,10).forEach(function(lb,i){
+      var y=70+i*22;
+      s+='<rect x="470" y="'+(y-9)+'" width="10" height="10" rx="2" fill="'+colors[i%colors.length]+'"/>';
+      s+='<text x="488" y="'+y+'" style="font-size:11.5px;fill:var(--ink2)">'+esc(String(lb).slice(0,26))+' · '+(values[i]/total*100).toFixed(1)+'%</text>';
+    });
+    s+='</svg>';
+    return s;
+  }
+  function renderChart(d){
+    var cols=d.columns, rows=d.rows;
+    if(!rows.length){ $('chartWrap').innerHTML='<div class="chart-empty">无数据可绘图</div>'; return; }
+    // 找数值列
+    var numIdx=[];
+    cols.forEach(function(c,i){ if(rows.slice(0,50).some(function(r){return isNum(r[i]);})) numIdx.push(i); });
+    if(!numIdx.length){ $('chartWrap').innerHTML='<div class="chart-empty">结果中没有数值列，无法生成图表。请 SELECT 至少一个数值字段。</div>'; return; }
+    // 分类列 = 第一个非数值列
+    var catIdx=-1;
+    for(var i=0;i<cols.length;i++){ if(numIdx.indexOf(i)<0){ catIdx=i; break; } }
+    var labels=rows.map(function(r,i){ return catIdx>=0?String(r[catIdx]):String(i+1); });
+    var series=numIdx.map(function(i){ return {name:cols[i],data:rows.map(function(r){return isNum(r[i])?r[i]:0;})}; });
+    var dateCol=catIdx>=0&&isDate(rows[0][catIdx]);
+    var isCount=/数$|量$|行数|count|qty|cnt|total/i.test(cols[numIdx[0]]||'');
+    var pie=!dateCol&&series.length===1&&rows.length>=2&&rows.length<=10&&labels.every(function(l){return l.length<20;})&&(isPieHint(cols[catIdx])||isCount);
+    if(pie){
+      $('chartWrap').innerHTML=pieSvg(labels,series[0].data);
+    }else{
+      $('chartWrap').innerHTML=chartSvg(labels,series,dateCol?'line':'bar');
+    }
+  }
+  function isPieHint(name){
+    if(!name)return false;
+    return /占比|比例|分布|占比率|share|percent|pct|rate/i.test(name);
+  }
+  function setView(v){
+    view=v;
+    $('tabTable').classList.toggle('on',v==='table');
+    $('tabChart').classList.toggle('on',v==='chart');
+    $('tableWrap').style.display=v==='table'?'block':'none';
+    $('chartWrap').style.display=v==='chart'?'block':'none';
+  }
+
+  var EXAMPLES=[
+    {t:'最近 30 天入库单行每天新增数',s:'date(creation_date) · COUNT(id)',q:"SELECT date(creation_date) AS 日期, COUNT(id) AS 入库行数 FROM winv_inbound_order_lines WHERE date(creation_date) >= date('now','-29 days') GROUP BY date(creation_date) ORDER BY 日期"},
+    {t:'最近 30 天批次档案每天新增数',s:'两表对照 · 折线图',q:"SELECT date(creation_date) AS 日期, COUNT(id) AS 批次数 FROM wmdm_batch WHERE date(creation_date) >= date('now','-29 days') GROUP BY date(creation_date) ORDER BY 日期"},
+    {t:'各国人口排行（柱状图）',s:'ORDER BY population DESC LIMIT 10',q:"SELECT name AS 国家, population AS 人口 FROM world ORDER BY population DESC LIMIT 10"},
+    {t:'各大洲国家数量',s:'GROUP BY continent',q:"SELECT continent AS 大洲, COUNT(*) AS 国家数 FROM world GROUP BY continent ORDER BY 国家数 DESC"},
+    {t:'部门平均工资',s:'JOIN + AVG',q:"SELECT d.name AS 部门, COUNT(*) AS 人数, AVG(e.salary) AS 平均工资 FROM emp e JOIN dept d ON e.dept_id=d.id GROUP BY d.name ORDER BY 平均工资 DESC"},
+    {t:'入库来源系统分布（饼图）',s:'GROUP BY source_system_code',q:"SELECT source_system_code AS 来源系统, COUNT(*) AS 单数 FROM winv_inbound_order_lines GROUP BY source_system_code"}
+  ];
+
+  $('runBtn').addEventListener('click',run);
+  $('clearBtn').addEventListener('click',function(){$('editor').value='';$('editor').focus();});
+  $('editor').addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();run();}});
+  $('tabTable').addEventListener('click',function(){setView('table');});
+  $('tabChart').addEventListener('click',function(){setView('chart');});
+  var links=[].slice.call(document.querySelectorAll('.nav a'));
+  var secs=[].slice.call(document.querySelectorAll('.sec[id]'));
+  if('IntersectionObserver' in window){
+    var ob=new IntersectionObserver(function(es){
+      es.forEach(function(e){if(e.isIntersecting)links.forEach(function(a){a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id);});});
+    },{rootMargin:'-8% 0px -78% 0px',threshold:0});
+    secs.forEach(function(s){ob.observe(s);});
+  }
+  var btn=$('toTop');
+  function sync(){if(window.scrollY>380)btn.classList.add('show');else btn.classList.remove('show');}
+  window.addEventListener('scroll',sync,{passive:true});sync();
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+  init();
+})();
+</script>
+<script>
+/* 直接双击 index.html（file://）时给一句说明：题库能点，查询要走 5288。
+   通过 http://127.0.0.1:5288 访问时这段不会执行。 */
+(function(){
+  if(location.protocol!=='file:')return;
+  var main=document.querySelector('.content');
+  if(!main)return;
+  var d=document.createElement('div');
+  d.className='file-hint';
+  d.innerHTML='<b>当前是以文件方式打开的页面</b>'
+    +'<span>题库入口可以直接点开使用；如果想执行 SQL 查询，请先启动 <code>SqlController.exe</code>，'
+    +'然后访问 <code>http://127.0.0.1:5288</code>（那里的查询功能才连得上后端）。</span>';
+  main.insertBefore(d, main.firstChild);
+})();
+</script>
+</body>
+</html>
